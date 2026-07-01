@@ -1,0 +1,99 @@
+// ============================================================
+// Worker CMS plugin — "checkin".
+//
+// Owns the event check-in surface: QR/barcode scanning, guest lookup,
+// main-attendee/plus-guest/session check-in, walk-in registration and badge
+// printing. Reads/writes the event/mail_list/guest/label pages
+// cms-plugin-events' blueprint already defines — this plugin adds no content
+// types of its own, only admin routes (CMS-session-gated) and public routes
+// (direct QR links + a passcode-lite kiosk) on its own domain.
+// ============================================================
+
+import { adminView, requirePluginSecret, serveViewAsset } from '@lionrockjs/worker-cms-plugin';
+import { CmsApiError, CmsClient, CmsNotConfiguredError } from './cms';
+import { handleCheckinAdmin } from './admin';
+import { handlePublicCheckin, type PublicEnv } from './public';
+import { checkinAccessForRequest, forbidden } from './permissions';
+// The plugin manifest is plain data, so it lives as a static JSON file served
+// verbatim at /__plugin/manifest rather than being assembled from constants here.
+import MANIFEST from './manifest.json';
+
+interface PluginEnv extends PublicEnv {
+  PLUGIN_SECRET?: string;
+  CMS_URL?: string;
+}
+
+export default {
+  async fetch(request: Request, env: PluginEnv): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    if (path.startsWith('/__plugin/admin')) {
+      const forbiddenResponse = requirePluginSecret(request, env.PLUGIN_SECRET);
+      if (forbiddenResponse) return forbiddenResponse;
+    }
+
+    if (path === '/__plugin/manifest') {
+      return Response.json(MANIFEST);
+    }
+
+    if (path.startsWith('/__plugin/views/')) {
+      const assetPath = path.slice('/__plugin/views'.length) || '/';
+      return serveViewAsset(env.VIEWS, assetPath);
+    }
+
+    if (path.startsWith('/__plugin/admin')) {
+      return handleAdmin(request, env, url);
+    }
+
+    // Static assets for the public kiosk pages (camera scanning + badge
+    // printing scripts) — these pages aren't wrapped in the host admin
+    // chrome, so they fetch scripts directly from this Worker's own domain.
+    if (path.startsWith('/assets/')) {
+      return serveViewAsset(env.VIEWS, path);
+    }
+
+    try {
+      const publicResponse = await handlePublicCheckin(request, env, url);
+      if (publicResponse) return publicResponse;
+    } catch (error) {
+      console.error('[checkin] public route failed', error);
+      return new Response('Something went wrong. Please try again.', { status: 500 });
+    }
+
+    return new Response('not found', { status: 404 });
+  },
+};
+
+async function handleAdmin(request: Request, env: PluginEnv, url: URL): Promise<Response> {
+  const rest = url.pathname.replace(/^\/__plugin\/admin\/?/, '');
+  const segments = rest.split('/').filter(Boolean);
+  const jsonOnly = wantsJson(url);
+
+  let cms: CmsClient;
+  try {
+    cms = new CmsClient(env);
+  } catch (error) {
+    if (error instanceof CmsNotConfiguredError) return adminView(env.VIEWS, 'Error', 'error', { message: error.message, showConfig: true }, jsonOnly);
+    throw error;
+  }
+
+  const access = checkinAccessForRequest(request);
+  if (!access.canView) return forbidden();
+
+  // Awaited (not bare-returned) so a CmsApiError raised deep inside a handler
+  // is caught here and rendered as an error panel rather than escaping as an
+  // unhandled 500 with a stack trace.
+  try {
+    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access);
+  } catch (error) {
+    if (error instanceof CmsApiError) return adminView(env.VIEWS, 'Error', 'error', { message: error.message }, jsonOnly);
+    throw error;
+  }
+}
+
+function wantsJson(url: URL): boolean {
+  const json = url.searchParams.get('json')?.trim().toLowerCase();
+  const format = url.searchParams.get('format')?.trim().toLowerCase();
+  return format === 'json' || (url.searchParams.has('json') && json !== '0' && json !== 'false');
+}

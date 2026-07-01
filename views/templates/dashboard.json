@@ -1,0 +1,4 @@
+{
+  "sections": { "main": { "type": "dashboard" } },
+  "order": ["main"]
+}

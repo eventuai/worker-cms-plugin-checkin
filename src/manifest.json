@@ -1,0 +1,12 @@
+{
+  "id": "checkin",
+  "name": "Check-in",
+  "version": "0.1.0",
+  "nav": [
+    { "label": "Check-in", "href": "dashboard", "roles": ["admin", "editor", "moderator", "event-helper"] }
+  ],
+  "permissions": [
+    { "value": "checkin:view", "label": "Check-in: view events and guest lists" },
+    { "value": "checkin:checkin", "label": "Check-in: check in and undo guests" }
+  ]
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scan — {{ listName | escape }}</title>
+<style>body{margin:0;background:#111827;font-family:system-ui,sans-serif;font-size:16px;color:#fff}.top{display:flex;justify-content:space-between;align-items:center;padding:1rem}.top a{color:#d1d5db;text-decoration:none;font-size:.85rem}.card{max-width:26rem;margin:0 auto;padding:0 1rem 2rem}video{width:100%;border-radius:1rem;background:#000;aspect-ratio:1/1;object-fit:cover}.status{text-align:center;margin:.75rem 0;color:#9ca3af;font-size:.9rem}.error{background:#fee2e2;color:#b91c1c;padding:.6rem 1rem;border-radius:.5rem;margin-bottom:1rem;font-size:.9rem}label{display:block;margin:1rem 0 .4rem;font-weight:600;color:#d1d5db;font-size:.85rem}input{box-sizing:border-box;width:100%;padding:.8rem;border:1px solid #374151;border-radius:.5rem;font:inherit;font-size:1rem;background:#1f2937;color:#fff}button{border:0;border-radius:.5rem;padding:.8rem 1.2rem;font:inherit;font-weight:700;cursor:pointer;width:100%;margin-top:.75rem}.btn-primary{background:#4f46e5;color:#fff}.links{display:flex;gap:1rem;justify-content:center;margin-top:1.5rem}.links a{color:#a5b4fc;text-decoration:none;font-size:.85rem}</style></head>
+<body>
+<div class="top"><span>{{ listName | escape }}</span><a href="{{ settingsHref | escape }}">Settings</a></div>
+<main class="card">
+  {% if error != blank %}<p class="error">{{ error | escape }}</p>{% endif %}
+  <video id="scanVideo" playsinline autoplay muted></video>
+  <p class="status" id="scanStatus">Starting camera…</p>
+  <form id="scanCodeForm" method="post">
+    <label for="scanCodeInput">Or enter the code manually</label>
+    <input type="text" name="code" id="scanCodeInput" autocomplete="off" placeholder="QR / barcode / RFID value">
+    <button class="btn-primary" type="submit">Find guest</button>
+  </form>
+  <div class="links">
+    <a href="{{ searchHref | escape }}">Search by name</a>
+    <a href="#" id="showAdhocForm">Walk-in guest</a>
+  </div>
+  <form id="adhocForm" method="post" action="{{ adhocHref | escape }}" style="display:none;margin-top:1.5rem;border-top:1px solid #374151;padding-top:1.5rem">
+    <label for="adhocName">Name</label>
+    <input type="text" name="name" id="adhocName" required>
+    <label for="adhocOrg">Organization</label>
+    <input type="text" name="organization" id="adhocOrg">
+    <label for="adhocEmail">Email</label>
+    <input type="email" name="email" id="adhocEmail">
+    <label for="adhocPlus">Plus guests</label>
+    <input type="number" min="0" name="plus_guests" id="adhocPlus" value="0">
+    <input type="hidden" name="checkin" value="1">
+    <button class="btn-primary" type="submit">Add &amp; check in</button>
+  </form>
+</main>
+<script src="/assets/js/zxing-wasm.js"></script>
+<script src="/assets/js/kiosk.js"></script>
+</body></html>
