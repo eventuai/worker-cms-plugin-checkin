@@ -104,7 +104,7 @@ async function handleAdmin(request: Request, env: PluginEnv, url: URL): Promise<
   // is caught here and rendered as an error panel rather than escaping as an
   // unhandled 500 with a stack trace.
   try {
-    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access, env.PUBLIC_BASE_URL ?? '');
+    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access, env.PUBLIC_BASE_URL ?? '', env.PLUGIN_SECRET ?? '');
   } catch (error) {
     if (error instanceof CmsApiError) return adminView(env.VIEWS, 'Error', 'error', { message: error.message }, jsonOnly);
     throw error;

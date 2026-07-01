@@ -13,7 +13,7 @@
 import { redirect, pointer, attr, type CmsPage } from '@lionrockjs/worker-cms-plugin';
 import { CmsClient, isAdhocGuestList, listByEvent, type CmsClientEnv } from './cms';
 import { resolveCheckinLink } from './qr-links';
-import { hasKioskSession, mintKioskCookie } from './kiosk-session';
+import { hasKioskSession, mintKioskCookie, verifyAdminLaunchToken } from './kiosk-session';
 import {
   checkinSessions,
   createWalkInGuest,
@@ -108,10 +108,12 @@ async function handleKiosk(request: Request, env: PublicEnv, segments: string[],
   const sub = segments[1];
   if (!sub) return handlePasscode(request, env, event);
 
+  // launch validates its own signed token, so it runs before the session guard.
+  if (sub === 'launch') return handleAdminLaunch(request, env, event, url);
+
   const hasPasscode = attr(event.lect, 'checkin_lite_passcode').trim() !== '';
   const sessionOk = !hasPasscode || await hasKioskSession(request, env.PLUGIN_SECRET ?? '', eventId);
   if (!sessionOk) return redirect(`/kiosk/${eventId}`);
-
   if (sub === 'scan') return handleScan(request, cms, env, event);
   if (sub === 'search') return handleSearch(cms, env, event, url);
   if (sub === 'settings') return html(await renderLiquid(env.VIEWS, '/templates/kiosk-settings.liquid', { eventName: event.name, eventId, backHref: `/kiosk/${eventId}/scan` }));
@@ -119,6 +121,14 @@ async function handleKiosk(request: Request, env: PublicEnv, segments: string[],
   if (sub === 'guests') return handleGuestDetail(request, cms, env, event, segments.slice(2));
 
   return notFound();
+}
+
+async function handleAdminLaunch(request: Request, env: PublicEnv, event: CmsPage, url: URL): Promise<Response> {
+  const token = url.searchParams.get('token') ?? '';
+  const ok = token && await verifyAdminLaunchToken(env.PLUGIN_SECRET ?? '', token, event.id);
+  if (!ok) return redirect(`/kiosk/${event.id}`);
+  const cookie = await mintKioskCookie(env.PLUGIN_SECRET ?? '', event.id);
+  return new Response(null, { status: 303, headers: { location: `/kiosk/${event.id}/scan`, 'set-cookie': cookie } });
 }
 
 async function handlePasscode(request: Request, env: PublicEnv, event: CmsPage): Promise<Response> {

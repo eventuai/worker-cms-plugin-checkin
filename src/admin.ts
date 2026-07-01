@@ -5,6 +5,7 @@
 import { adminView, notFoundView, redirect, type CmsPage } from '@lionrockjs/worker-cms-plugin';
 import { attr, checkins, CmsClient, computeGuestListSummary, listByEvent, PLUGIN_ID } from './cms';
 import { checkinSessions, mainCheckinCount, plusGuestsCap, recordCheckin, searchGuests, undoCheckin, formatMainMessage } from './checkin-actions';
+import { mintAdminLaunchToken } from './kiosk-session';
 import { type CheckinAccess } from './permissions';
 
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
@@ -18,6 +19,7 @@ export async function handleCheckinAdmin(
   jsonOnly: boolean,
   access: CheckinAccess,
   publicBase: string,
+  pluginSecret: string,
 ): Promise<Response> {
   const section = segments[0] || 'dashboard';
 
@@ -26,7 +28,7 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
-    return eventDashboard(cms, views, eventId, jsonOnly, publicBase);
+    return eventDashboard(cms, views, eventId, jsonOnly, publicBase, pluginSecret);
   }
 
   if (section === 'rsvp') {
@@ -63,7 +65,7 @@ async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Pro
   }, jsonOnly);
 }
 
-async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, publicBase: string): Promise<Response> {
+async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, publicBase: string, pluginSecret: string): Promise<Response> {
   const event = await cms.get(eventId);
   if (event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
@@ -90,6 +92,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
   // list on it — see public.ts), not to one list, so there's a single kiosk
   // link per event rather than one per list.
   const base = publicBase.replace(/\/+$/, '');
+  const launchToken = await mintAdminLaunchToken(pluginSecret, event.id);
 
   return adminView(views, `Check-in — ${event.name}`, 'event-dashboard', {
     eventName: event.name,
@@ -97,6 +100,8 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     // Absolute: this admin page renders on the CMS's own origin, but /kiosk/*
     // only exists on this plugin's own public Worker.
     kioskHref: `${base}/kiosk/${event.id}`,
+    // Bypasses passcode — valid for 5 min from page render.
+    launchKioskHref: `${base}/kiosk/${event.id}/launch?token=${encodeURIComponent(launchToken)}`,
     hasPasscode: attr(event.lect, 'checkin_lite_passcode').trim() !== '',
     sessions: checkinSessions(event),
     lists: listSummaries.map(({ list, summary }) => ({
