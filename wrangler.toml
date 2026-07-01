@@ -2,6 +2,12 @@ name = "worker-cms-plugin-checkin"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+preview_urls = false
+
+[[routes]]
+pattern = "checkin.eventuai.com"
+zone_name = "eventuai.com"
+custom_domain = true
 
 # Admin + kiosk view templates (LiquidJS + JSON templates, mirroring the CMS
 # and cms-plugin-events). The Worker runs first for every request and reads
@@ -36,6 +42,12 @@ binding = "CF_VERSION_METADATA"
 # read/write API ({CMS_URL}/__cms/*) to read events/lists/guests/labels and
 # create/update guest pages.
 CMS_URL = "https://cms.eventuai.com"
+
+# This Worker's own public origin — used to build absolute kiosk links in the
+# admin dashboard (those render on the CMS's own origin, so a relative
+# /kiosk/* path would otherwise resolve against cms.eventuai.com instead).
+# Must match the custom domain route configured above.
+PUBLIC_BASE_URL = "https://checkin.eventuai.com"
 
 # Deployment note: for cms-plugin-events' already-minted QR links to resolve,
 # this Worker must be reachable at /checkin/* and /kiosk/* on the SAME public

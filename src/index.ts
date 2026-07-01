@@ -9,7 +9,7 @@
 // (direct QR links + a passcode-lite kiosk) on its own domain.
 // ============================================================
 
-import { adminView, requirePluginSecret, serveViewAsset } from '@lionrockjs/worker-cms-plugin';
+import { adminView, redirect, requirePluginSecret, serveViewAsset } from '@lionrockjs/worker-cms-plugin';
 import { CmsApiError, CmsClient, CmsNotConfiguredError } from './cms';
 import { handleCheckinAdmin } from './admin';
 import { handlePublicCheckin, type PublicEnv } from './public';
@@ -21,6 +21,8 @@ import MANIFEST from './manifest.json';
 interface PluginEnv extends PublicEnv {
   PLUGIN_SECRET?: string;
   CMS_URL?: string;
+  /** This Worker's own public origin (e.g. https://checkin.eventuai.com) — used to build absolute kiosk links in the admin dashboard, since those render on the CMS's origin. */
+  PUBLIC_BASE_URL?: string;
 }
 
 export default {
@@ -70,6 +72,23 @@ async function handleAdmin(request: Request, env: PluginEnv, url: URL): Promise<
   const segments = rest.split('/').filter(Boolean);
   const jsonOnly = wantsJson(url);
 
+  // The CMS client-side renderer fetches plugin views through
+  // /admin/plugins/{id}/views/* → /__plugin/admin/views/* — serve them here.
+  if (segments[0] === 'views') {
+    const viewPath = `/${segments.slice(1).join('/')}`;
+    if (
+      viewPath === '/color-tag-picker.liquid' ||
+      viewPath === '/snippets/color-tag-picker.liquid' ||
+      viewPath === '/sections/color-tag-picker.liquid'
+    ) {
+      return redirect(`/admin/views/snippets/color-tag-picker.liquid${url.search}`);
+    }
+    if (viewPath.startsWith('/snippets/pagefield/')) {
+      return redirect(`/admin/views${viewPath}${url.search}`);
+    }
+    return serveViewAsset(env.VIEWS, viewPath, { bareLiquidSnippets: true });
+  }
+
   let cms: CmsClient;
   try {
     cms = new CmsClient(env);
@@ -85,7 +104,7 @@ async function handleAdmin(request: Request, env: PluginEnv, url: URL): Promise<
   // is caught here and rendered as an error panel rather than escaping as an
   // unhandled 500 with a stack trace.
   try {
-    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access);
+    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access, env.PUBLIC_BASE_URL ?? '');
   } catch (error) {
     if (error instanceof CmsApiError) return adminView(env.VIEWS, 'Error', 'error', { message: error.message }, jsonOnly);
     throw error;

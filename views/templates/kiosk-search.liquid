@@ -1,16 +1,60 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search — {{ listName | escape }}</title>
-<style>body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif;font-size:16px;color:#111827}.top{display:flex;justify-content:space-between;align-items:center;padding:1rem}.top a{color:#6b7280;text-decoration:none;font-size:.85rem}.card{max-width:28rem;margin:0 auto;padding:0 1rem 2rem}input{box-sizing:border-box;width:100%;padding:.8rem;border:1px solid #d1d5db;border-radius:.5rem;font:inherit;font-size:1rem}.result{display:block;background:#fff;border:1px solid #e5e7eb;border-radius:.5rem;padding:.9rem 1rem;margin-top:.75rem;text-decoration:none;color:#111827}.result b{display:block}.result span{color:#6b7280;font-size:.85rem}.badge{display:inline-block;padding:.1rem .5rem;border-radius:9999px;font-size:.7rem;font-weight:700;background:#dcfce7;color:#166534;margin-left:.5rem}.empty{color:#9ca3af;text-align:center;margin-top:2rem}</style></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search — {{ eventName | escape }}</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif;font-size:16px;color:#111827}
+.top{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:#fff;border-bottom:1px solid #e5e7eb}
+.top a{color:#6b7280;text-decoration:none;font-size:.85rem}
+.top span{font-weight:600;font-size:.95rem}
+.card{max-width:28rem;margin:0 auto;padding:.75rem 1rem 5rem}
+.search-form{background:#fff;padding:.75rem;border-radius:.75rem;box-shadow:0 1px 2px #0001;margin-bottom:.75rem;display:flex;gap:.5rem}
+.search-form input{flex:1;padding:.7rem .9rem;border:1px solid #d1d5db;border-radius:.5rem;font:inherit;font-size:1rem;outline:none}
+.search-form input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px #4f46e520}
+.search-form button{padding:.7rem 1rem;background:#4f46e5;color:#fff;border:0;border-radius:.5rem;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.result{display:block;background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:.9rem 1rem;margin-bottom:.5rem;text-decoration:none;color:#111827}
+.result-name{font-weight:600;font-size:1rem;margin-bottom:.2rem}
+.result-sub{color:#6b7280;font-size:.85rem}
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:9999px;font-size:.7rem;font-weight:700;background:#dcfce7;color:#166534;margin-left:.4rem;vertical-align:middle}
+.empty{color:#9ca3af;text-align:center;margin-top:2.5rem;font-size:.9rem}
+/* Bottom navigation */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;display:flex;z-index:10}
+.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .5rem .5rem;text-decoration:none;color:#9ca3af;font-size:.65rem;font-weight:600;gap:.2rem;transition:color .15s}
+.bnav a svg{width:1.35rem;height:1.35rem}
+.bnav a.on{color:#4f46e5}
+</style></head>
 <body>
-<div class="top"><a href="/kiosk/{{ listId }}/scan">&larr; Scan</a><span>{{ listName | escape }}</span></div>
+<div class="top">
+  <span>{{ eventName | escape }}</span>
+  <a href="/kiosk/{{ eventId }}/scan">&larr; Scan</a>
+</div>
 <main class="card">
-  <form method="get">
-    <input type="text" name="q" value="{{ query | escape }}" autofocus autocomplete="off" placeholder="Search name, email or company">
+  <form class="search-form" method="get">
+    <input type="text" name="q" value="{{ query | escape }}" autofocus autocomplete="off" placeholder="Name, email or company…">
+    <button type="submit">Search</button>
   </form>
+
   {% for guest in guests %}
-    <a class="result" href="/kiosk/{{ listId }}/guests/{{ guest.id }}"><b>{{ guest.name | escape }}{% if guest.checkedIn %}<span class="badge">Checked in</span>{% endif %}</b><span>{{ guest.organization | escape }}</span></a>
+    <a class="result" href="/kiosk/{{ eventId }}/guests/{{ guest.id }}">
+      <div class="result-name">{{ guest.name | escape }}{% if guest.checkedIn %}<span class="badge">Checked in</span>{% endif %}</div>
+      <div class="result-sub">{{ guest.organization | escape }}{% if guest.organization != blank and guest.listName != blank %} &middot; {% endif %}{{ guest.listName | escape }}</div>
+    </a>
   {% else %}
     <p class="empty">{% if query != blank %}No guests match "{{ query | escape }}".{% else %}Start typing to search.{% endif %}</p>
   {% endfor %}
 </main>
+
+<nav class="bnav">
+  <a href="/kiosk/{{ eventId }}/scan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    Scan
+  </a>
+  <a href="/kiosk/{{ eventId }}/search" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Search
+  </a>
+  <a href="/kiosk/{{ eventId }}/settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    Settings
+  </a>
+</nav>
 </body></html>

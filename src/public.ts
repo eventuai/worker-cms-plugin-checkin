@@ -3,10 +3,15 @@
 //
 // /checkin/{listId}/{guestId}/{sig}            — direct QR link cms-plugin-events
 // /checkin/{listId}/{guestId}/{index}/{sig}       already mints (see qr-links.ts)
-// /kiosk/{listId}[/...]                         — passcode-lite kiosk (kiosk-session.ts)
+// /kiosk/{eventId}[/...]                        — passcode-lite kiosk (kiosk-session.ts)
+//
+// The kiosk is scoped to the whole event, not one guest list — a door device
+// scans/searches across every guest list on the event (mirrors the legacy
+// Eventuai checkin app's /events/:event_id/scan and /events/:event_id/guest-search,
+// which search every mail_list belonging to the event rather than one at a time).
 
 import { redirect, pointer, attr, type CmsPage } from '@lionrockjs/worker-cms-plugin';
-import { CmsClient, type CmsClientEnv } from './cms';
+import { CmsClient, isAdhocGuestList, listByEvent, type CmsClientEnv } from './cms';
 import { resolveCheckinLink } from './qr-links';
 import { hasKioskSession, mintKioskCookie } from './kiosk-session';
 import {
@@ -88,93 +93,110 @@ async function handleDirectCheckin(request: Request, env: PublicEnv, segments: s
 // ── Kiosk ───────────────────────────────────────────────────────────────────
 
 async function handleKiosk(request: Request, env: PublicEnv, segments: string[], url: URL): Promise<Response> {
-  const listId = pageId(segments[0]);
-  if (!listId) return notFound();
+  const eventId = pageId(segments[0]);
+  if (!eventId) return notFound();
 
   const cms = new CmsClient(env);
-  let list: CmsPage;
+  let event: CmsPage;
   try {
-    list = await cms.get(listId);
+    event = await cms.get(eventId);
   } catch {
     return notFound();
   }
-  if (list.page_type !== 'mail_list') return notFound();
+  if (event.page_type !== 'event') return notFound();
 
   const sub = segments[1];
-  if (!sub) return handlePasscode(request, env, list);
+  if (!sub) return handlePasscode(request, env, event);
 
-  if (!(await hasKioskSession(request, env.PLUGIN_SECRET ?? '', listId))) return redirect(`/kiosk/${listId}`);
+  const hasPasscode = attr(event.lect, 'checkin_lite_passcode').trim() !== '';
+  const sessionOk = !hasPasscode || await hasKioskSession(request, env.PLUGIN_SECRET ?? '', eventId);
+  if (!sessionOk) return redirect(`/kiosk/${eventId}`);
 
-  if (sub === 'scan') return handleScan(request, cms, env, list);
-  if (sub === 'search') return handleSearch(cms, env, list, url);
-  if (sub === 'settings') return html(await renderLiquid(env.VIEWS, '/templates/kiosk-settings.liquid', { listName: list.name, backHref: `/kiosk/${listId}/scan` }));
-  if (sub === 'adhoc-guest') return handleAdhocGuest(request, cms, list);
-  if (sub === 'guests') return handleGuestDetail(request, cms, env, list, segments.slice(2));
+  if (sub === 'scan') return handleScan(request, cms, env, event);
+  if (sub === 'search') return handleSearch(cms, env, event, url);
+  if (sub === 'settings') return html(await renderLiquid(env.VIEWS, '/templates/kiosk-settings.liquid', { eventName: event.name, eventId, backHref: `/kiosk/${eventId}/scan` }));
+  if (sub === 'adhoc-guest') return handleAdhocGuest(request, cms, event);
+  if (sub === 'guests') return handleGuestDetail(request, cms, env, event, segments.slice(2));
 
   return notFound();
 }
 
-async function handlePasscode(request: Request, env: PublicEnv, list: CmsPage): Promise<Response> {
-  const listId = list.id;
-  if (await hasKioskSession(request, env.PLUGIN_SECRET ?? '', listId)) return redirect(`/kiosk/${listId}/scan`);
+async function handlePasscode(request: Request, env: PublicEnv, event: CmsPage): Promise<Response> {
+  const eventId = event.id;
+  const expected = attr(event.lect, 'checkin_lite_passcode').trim();
 
-  const expected = attr(list.lect, 'checkin_lite_passcode').trim();
-  if (!expected) return html(renderMessage('This guest list has no kiosk passcode set yet. Set one in the Events admin.'));
+  // No passcode configured → open access, skip the lock screen.
+  if (!expected) return redirect(`/kiosk/${eventId}/scan`);
+
+  if (await hasKioskSession(request, env.PLUGIN_SECRET ?? '', eventId)) return redirect(`/kiosk/${eventId}/scan`);
 
   if (request.method === 'POST') {
     const form = await request.formData();
     const submitted = String(form.get('passcode') ?? '').trim();
     if (submitted && submitted === expected) {
-      const cookie = await mintKioskCookie(env.PLUGIN_SECRET ?? '', listId);
-      return new Response(null, { status: 303, headers: { location: `/kiosk/${listId}/scan`, 'set-cookie': cookie } });
+      const cookie = await mintKioskCookie(env.PLUGIN_SECRET ?? '', eventId);
+      return new Response(null, { status: 303, headers: { location: `/kiosk/${eventId}/scan`, 'set-cookie': cookie } });
     }
-    return html(await renderLiquid(env.VIEWS, '/templates/kiosk-passcode.liquid', { listName: list.name, listId, error: 'Incorrect passcode.' }));
+    return html(await renderLiquid(env.VIEWS, '/templates/kiosk-passcode.liquid', { eventName: event.name, eventId, error: 'Incorrect passcode.' }));
   }
 
-  return html(await renderLiquid(env.VIEWS, '/templates/kiosk-passcode.liquid', { listName: list.name, listId, error: '' }));
+  return html(await renderLiquid(env.VIEWS, '/templates/kiosk-passcode.liquid', { eventName: event.name, eventId, error: '' }));
 }
 
-async function handleScan(request: Request, cms: CmsClient, env: PublicEnv, list: CmsPage): Promise<Response> {
+async function handleScan(request: Request, cms: CmsClient, env: PublicEnv, event: CmsPage): Promise<Response> {
   const data = {
-    listName: list.name,
-    listId: list.id,
-    searchHref: `/kiosk/${list.id}/search`,
-    settingsHref: `/kiosk/${list.id}/settings`,
-    adhocHref: `/kiosk/${list.id}/adhoc-guest`,
+    eventName: event.name,
+    eventId: event.id,
+    searchHref: `/kiosk/${event.id}/search`,
+    settingsHref: `/kiosk/${event.id}/settings`,
+    adhocHref: `/kiosk/${event.id}/adhoc-guest`,
   };
   if (request.method === 'POST') {
     const form = await request.formData();
     const code = String(form.get('code') ?? '').trim();
-    const guest = code ? await findGuestByCode(cms, list.id, code) : null;
-    if (guest) return redirect(`/kiosk/${list.id}/guests/${guest.id}`);
+    const guest = code ? await findGuestByCodeInEvent(cms, event.id, code) : null;
+    if (guest) return redirect(`/kiosk/${event.id}/guests/${guest.id}`);
     return html(await renderLiquid(env.VIEWS, '/templates/kiosk-scan.liquid', { ...data, error: 'No guest found for that code.' }));
   }
   return html(await renderLiquid(env.VIEWS, '/templates/kiosk-scan.liquid', { ...data, error: '' }));
 }
 
-async function handleSearch(cms: CmsClient, env: PublicEnv, list: CmsPage, url: URL): Promise<Response> {
+async function handleSearch(cms: CmsClient, env: PublicEnv, event: CmsPage, url: URL): Promise<Response> {
   const q = url.searchParams.get('q') ?? '';
-  const guests = q ? await searchGuests(cms, list.id, q) : [];
+  const lists = q ? await listByEvent(cms, 'mail_list', event.id) : [];
+  const results: Array<{ id: number; name: string; organization: string; listName: string; checkedIn: boolean }> = [];
+  for (const list of lists) {
+    const guests = await searchGuests(cms, list.id, q);
+    for (const guest of guests) {
+      results.push({
+        id: guest.id,
+        name: guest.name,
+        organization: attr(guest.lect, 'organization'),
+        listName: list.name,
+        checkedIn: mainCheckinCount(guest) > 0,
+      });
+    }
+  }
+
   return html(await renderLiquid(env.VIEWS, '/templates/kiosk-search.liquid', {
-    listName: list.name,
-    listId: list.id,
+    eventName: event.name,
+    eventId: event.id,
     query: q,
-    guests: guests.map((guest) => ({
-      id: guest.id,
-      name: guest.name,
-      organization: attr(guest.lect, 'organization'),
-      checkedIn: mainCheckinCount(guest) > 0,
-    })),
+    guests: results,
   }));
 }
 
-async function handleAdhocGuest(request: Request, cms: CmsClient, list: CmsPage): Promise<Response> {
+async function handleAdhocGuest(request: Request, cms: CmsClient, event: CmsPage): Promise<Response> {
   if (request.method !== 'POST') return notFound();
   const form = await request.formData();
   const name = String(form.get('name') ?? '').trim();
-  if (!name) return redirect(`/kiosk/${list.id}/scan`);
+  if (!name) return redirect(`/kiosk/${event.id}/scan`);
 
-  const guest = await createWalkInGuest(cms, list.id, {
+  const lists = await listByEvent(cms, 'mail_list', event.id);
+  const target = lists.find(isAdhocGuestList);
+  if (!target) return html(renderMessage('No default guest list configured for this event yet. Add one in the CMS admin first.'), 409);
+
+  const guest = await createWalkInGuest(cms, target.id, {
     name,
     email: String(form.get('email') ?? '').trim(),
     phone: String(form.get('phone') ?? '').trim(),
@@ -183,27 +205,31 @@ async function handleAdhocGuest(request: Request, cms: CmsClient, list: CmsPage)
   });
   if (form.get('checkin') === '1') await recordCheckin(cms, guest, formatMainMessage('kiosk'));
 
-  return redirect(`/kiosk/${list.id}/guests/${guest.id}`);
+  return redirect(`/kiosk/${event.id}/guests/${guest.id}`);
 }
 
-async function handleGuestDetail(request: Request, cms: CmsClient, env: PublicEnv, list: CmsPage, rest: string[]): Promise<Response> {
+async function handleGuestDetail(request: Request, cms: CmsClient, env: PublicEnv, event: CmsPage, rest: string[]): Promise<Response> {
   const guestId = pageId(rest[0]);
   if (!guestId) return notFound();
 
   let guest = await cms.get(guestId).catch(() => null);
-  if (!guest || guest.page_type !== 'guest' || guest.page_id !== list.id) return notFound();
+  if (!guest || guest.page_type !== 'guest') return notFound();
 
-  const event = await eventForList(cms, list);
+  // Guest's own mail_list must belong to this event — keeps one event's kiosk
+  // from reaching into another event's guests via a guessed guest id.
+  const list = guest.page_id ? await cms.get(guest.page_id).catch(() => null) : null;
+  if (!list || list.page_type !== 'mail_list' || pointer(list.lect, 'event') !== String(event.id)) return notFound();
+
   const action = rest[1];
 
   if (action === 'badge') return renderBadge(cms, event, guest);
 
   if (action && request.method === 'POST') {
     guest = await performGuestAction(cms, guest, event, action, request);
-    return redirect(`/kiosk/${list.id}/guests/${guest.id}`);
+    return redirect(`/kiosk/${event.id}/guests/${guest.id}`);
   }
 
-  return html(await renderGuestDetail(env, list, event, guest));
+  return html(await renderGuestDetail(env, event, guest));
 }
 
 async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage | null, action: string, request: Request): Promise<CmsPage> {
@@ -246,17 +272,17 @@ async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage
   return guest;
 }
 
-async function renderGuestDetail(env: PublicEnv, list: CmsPage, event: CmsPage | null, guest: CmsPage): Promise<string> {
+async function renderGuestDetail(env: PublicEnv, event: CmsPage, guest: CmsPage): Promise<string> {
   const cap = plusGuestsCap(guest);
   const plusGuests = Array.from({ length: cap }, (_, index) => ({
     index,
     label: `Plus guest ${index + 1}`,
     checkedIn: plusCheckinCount(guest, index) > 0,
   }));
-  const sessions = event ? checkinSessions(event).map((session) => ({ ...session, checkedIn: sessionCheckinCount(guest, session.id) > 0 })) : [];
+  const sessions = checkinSessions(event).map((session) => ({ ...session, checkedIn: sessionCheckinCount(guest, session.id) > 0 }));
 
   return renderLiquid(env.VIEWS, '/templates/kiosk-guest.liquid', {
-    listId: list.id,
+    eventId: event.id,
     guestId: guest.id,
     guestName: guest.name,
     organization: attr(guest.lect, 'organization'),
@@ -268,15 +294,14 @@ async function renderGuestDetail(env: PublicEnv, list: CmsPage, event: CmsPage |
     sessions,
     hasSessions: sessions.length > 0,
     rfid: attr(guest.lect, 'barcode'),
-    backHref: `/kiosk/${list.id}/scan`,
-    searchHref: `/kiosk/${list.id}/search`,
-    badgeHref: `/kiosk/${list.id}/guests/${guest.id}/badge`,
-    settingsHref: `/kiosk/${list.id}/settings`,
+    backHref: `/kiosk/${event.id}/scan`,
+    searchHref: `/kiosk/${event.id}/search`,
+    badgeHref: `/kiosk/${event.id}/guests/${guest.id}/badge`,
+    settingsHref: `/kiosk/${event.id}/settings`,
   });
 }
 
-async function renderBadge(cms: CmsClient, event: CmsPage | null, guest: CmsPage): Promise<Response> {
-  if (!event) return html(renderMessage('No event found for this guest.'), 404);
+async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Promise<Response> {
   const labels = await eventLabels(cms, event.id);
   if (!labels.length) return html(renderMessage('No badge template configured for this event yet.'), 404);
   const frame = labelFrame(labels[0]);
@@ -284,11 +309,14 @@ async function renderBadge(cms: CmsClient, event: CmsPage | null, guest: CmsPage
   return new Response(svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'no-store' } });
 }
 
-async function eventForList(cms: CmsClient, list: CmsPage): Promise<CmsPage | null> {
-  const eventId = Number(pointer(list.lect, 'event'));
-  if (!Number.isInteger(eventId) || eventId <= 0) return null;
-  const event = await cms.get(eventId).catch(() => null);
-  return event && event.page_type === 'event' ? event : null;
+/** Scans every guest list on the event, in order, for a guest whose qrcode/barcode matches. */
+async function findGuestByCodeInEvent(cms: CmsClient, eventId: number, code: string): Promise<CmsPage | null> {
+  const lists = await listByEvent(cms, 'mail_list', eventId);
+  for (const list of lists) {
+    const guest = await findGuestByCode(cms, list.id, code);
+    if (guest) return guest;
+  }
+  return null;
 }
 
 // ── Small helpers ────────────────────────────────────────────────────────

@@ -93,11 +93,12 @@ export function computeGuestListSummary(guests: CmsPage[]): GuestListSummary {
 }
 
 /**
- * True for the auto-managed "Adhoc Guests" list cms-plugin-events creates
- * per event (src/rsvp.ts `isAdhocList`/`ensureAdhocGuestList`). Identified
- * the same way that plugin identifies it — by name — since check-in walk-ins
- * should land in the same list admin-triggered adhoc guests do.
+ * True for the auto-managed "Adhoc" list cms-plugin-events creates per event
+ * (src/rsvp.ts `isAdhocList`/`ensureAdhocGuestList`). Matched the exact same
+ * way that plugin matches it — case-insensitive, trimmed name `"adhoc"` —
+ * since check-in walk-ins should land in the same list admin-triggered adhoc
+ * guests do.
  */
 export function isAdhocGuestList(list: CmsPage): boolean {
-  return list.page_type === 'mail_list' && list.name === 'Adhoc Guests';
+  return list.page_type === 'mail_list' && list.name.trim().toLowerCase() === 'adhoc';
 }

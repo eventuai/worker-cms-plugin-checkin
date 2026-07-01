@@ -1,8 +1,33 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Printer settings</title>
-<style>body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif;font-size:16px;color:#111827}.top{display:flex;justify-content:space-between;align-items:center;padding:1rem}.top a{color:#6b7280;text-decoration:none;font-size:.85rem}.card{max-width:28rem;margin:0 auto;padding:0 1rem 2rem}.panel{background:#fff;border-radius:1rem;box-shadow:0 1px 3px #0002;padding:1.25rem;margin-bottom:1rem}h2{font-size:1rem;margin:0 0 .75rem}label{display:flex;align-items:center;gap:.5rem;margin:.5rem 0;font-weight:600;font-size:.9rem}input[type=text]{box-sizing:border-box;width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:.4rem;font:inherit;font-size:.9rem;margin-top:.4rem}select{box-sizing:border-box;width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:.4rem;font:inherit;font-size:.9rem}button{border:0;border-radius:.5rem;padding:.6rem 1rem;font:inherit;font-weight:700;cursor:pointer;font-size:.9rem;margin-top:.5rem}.btn-primary{background:#4f46e5;color:#fff}.btn-secondary{background:#f3f4f6;color:#374151}.hidden{display:none}</style></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings — {{ eventName | escape }}</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif;font-size:16px;color:#111827}
+.top{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:#fff;border-bottom:1px solid #e5e7eb}
+.top a{color:#6b7280;text-decoration:none;font-size:.85rem}
+.top span{font-weight:600;font-size:.95rem}
+.card{max-width:28rem;margin:0 auto;padding:.75rem 1rem 5rem}
+.panel{background:#fff;border-radius:1rem;box-shadow:0 1px 3px #0001;padding:1.25rem;margin-bottom:1rem}
+h2{font-size:1rem;margin:0 0 .75rem;font-weight:700}
+label{display:flex;align-items:center;gap:.5rem;margin:.5rem 0;font-weight:600;font-size:.9rem}
+input[type=text]{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:.4rem;font:inherit;font-size:.9rem;margin-top:.4rem;outline:none}
+input[type=text]:focus{border-color:#4f46e5}
+select{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:.4rem;font:inherit;font-size:.9rem;background:#fff}
+button{border:0;border-radius:.5rem;padding:.6rem 1rem;font:inherit;font-weight:700;cursor:pointer;font-size:.9rem;margin-top:.5rem}
+.btn-primary{background:#4f46e5;color:#fff}
+.btn-secondary{background:#f3f4f6;color:#374151}
+.hidden{display:none}
+/* Bottom navigation */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;display:flex;z-index:10}
+.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .5rem .5rem;text-decoration:none;color:#9ca3af;font-size:.65rem;font-weight:600;gap:.2rem;transition:color .15s}
+.bnav a svg{width:1.35rem;height:1.35rem}
+.bnav a.on{color:#4f46e5}
+</style></head>
 <body>
-<div class="top"><a href="{{ backHref | escape }}">&larr; Scan</a><span>Printer settings</span></div>
+<div class="top">
+  <span>Settings</span>
+  <a href="{{ backHref | escape }}">&larr; Scan</a>
+</div>
 <main class="card">
   <div class="panel">
     <h2>Printer mode <span id="printerStatus"></span></h2>
@@ -28,7 +53,29 @@
     <button class="btn-primary" id="manualRequest" type="button" style="width:100%;margin-top:1rem">Pair USB printer</button>
     <button class="btn-secondary" id="rawPrint" type="button" style="width:100%">Send test print</button>
   </div>
+
+  <div class="panel">
+    <h2>Event</h2>
+    <p style="margin:0;font-size:.9rem;color:#6b7280">{{ eventName | escape }}</p>
+    <a href="{{ backHref | escape }}" style="display:inline-block;margin-top:.75rem;font-size:.85rem;color:#4f46e5;text-decoration:none">← Back to scan</a>
+  </div>
 </main>
+
+<nav class="bnav">
+  <a href="{{ backHref | escape }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    Scan
+  </a>
+  <a href="/kiosk/{{ eventId }}/search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Search
+  </a>
+  <a href="#" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    Settings
+  </a>
+</nav>
+
 <textarea id="bitmapOutput" style="display:none" aria-hidden="true">1B 69 61 01</textarea>
 <script src="/assets/js/printer.js"></script>
 </body></html>

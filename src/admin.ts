@@ -17,6 +17,7 @@ export async function handleCheckinAdmin(
   url: URL,
   jsonOnly: boolean,
   access: CheckinAccess,
+  publicBase: string,
 ): Promise<Response> {
   const section = segments[0] || 'dashboard';
 
@@ -25,7 +26,7 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
-    return eventDashboard(cms, views, eventId, jsonOnly);
+    return eventDashboard(cms, views, eventId, jsonOnly, publicBase);
   }
 
   if (section === 'rsvp') {
@@ -62,7 +63,7 @@ async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Pro
   }, jsonOnly);
 }
 
-async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean): Promise<Response> {
+async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, publicBase: string): Promise<Response> {
   const event = await cms.get(eventId);
   if (event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
@@ -85,17 +86,23 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20);
 
+  // The kiosk is scoped to the whole event (scan/search cross every guest
+  // list on it — see public.ts), not to one list, so there's a single kiosk
+  // link per event rather than one per list.
+  const base = publicBase.replace(/\/+$/, '');
+
   return adminView(views, `Check-in — ${event.name}`, 'event-dashboard', {
     eventName: event.name,
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
+    // Absolute: this admin page renders on the CMS's own origin, but /kiosk/*
+    // only exists on this plugin's own public Worker.
+    kioskHref: `${base}/kiosk/${event.id}`,
+    hasPasscode: attr(event.lect, 'checkin_lite_passcode').trim() !== '',
     sessions: checkinSessions(event),
     lists: listSummaries.map(({ list, summary }) => ({
       id: list.id,
       name: list.name,
       allowCheckin: attr(list.lect, 'allow_checkin') !== 'no',
-      showInLite: attr(list.lect, 'show_in_checkin_lite') === 'yes',
-      hasPasscode: attr(list.lect, 'checkin_lite_passcode').trim() !== '',
-      kioskHref: `/kiosk/${list.id}`,
       searchHref: `${ADMIN_BASE}/rsvp/${list.id}/guests/search`,
       checkedIn: summary.checked_in_count,
       total: summary.guest_count,

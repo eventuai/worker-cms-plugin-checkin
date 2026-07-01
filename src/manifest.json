@@ -8,5 +8,11 @@
   "permissions": [
     { "value": "checkin:view", "label": "Check-in: view events and guest lists" },
     { "value": "checkin:checkin", "label": "Check-in: check in and undo guests" }
-  ]
+  ],
+  "contentTypes": {
+    "readTypes": ["event", "mail_list", "label"],
+    "blueprint": {
+      "guest": []
+    }
+  }
 }
