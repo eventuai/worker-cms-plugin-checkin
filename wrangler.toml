@@ -2,17 +2,7 @@ name = "worker-cms-plugin-checkin"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-preview_urls = false
 
-[[routes]]
-pattern = "checkin.eventuai.com"
-zone_name = "eventuai.com"
-custom_domain = true
-
-# Admin + kiosk view templates (LiquidJS + JSON templates, mirroring the CMS
-# and cms-plugin-events). The Worker runs first for every request and reads
-# these internally via the VIEWS binding, so the files are never served
-# publicly except through the routes that explicitly proxy them.
 [assets]
 directory = "./views"
 binding = "VIEWS"
@@ -20,22 +10,6 @@ run_worker_first = true
 
 [version_metadata]
 binding = "CF_VERSION_METADATA"
-
-# The CMS forwards this secret on every hook / admin call, and this plugin
-# sends it back on every F1 write-back call. Set it to THIS plugin's
-# dedicated secret — shown in the CMS admin under Plugins → Check-in → Edit →
-# Shared secret (each plugin has its own, so one can be rotated/revoked
-# alone):
-#   wrangler secret put PLUGIN_SECRET
-#
-# cms-plugin-events already mints guest check-in QR codes signed with ITS OWN
-# PLUGIN_SECRET, pointing at {PUBLIC_BASE_URL}/checkin/{listId}/{guestId}/{sig}
-# (see cms-plugin-events/src/rsvp.ts guestQr/plusGuestQrCodes). To honour
-# those already-issued links without touching cms-plugin-events, this plugin
-# needs a COPY of that plugin's PLUGIN_SECRET, used only to verify incoming
-# /checkin/* signatures (never to authenticate this plugin's own CMS calls —
-# those use PLUGIN_SECRET above under plugin id "checkin"):
-#   wrangler secret put EVENTS_PLUGIN_SECRET
 
 [vars]
 # Base URL of the CMS Worker — where this plugin reaches the F1 page
