@@ -4,6 +4,7 @@
   </div>
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    {% if picture != blank %}<img src="{{ picture | escape }}" alt="Photo of {{ guestName | escape }}" class="rounded-lg mb-3" style="max-width:8rem;max-height:8rem;object-fit:cover" loading="lazy">{% endif %}
     <h1 class="text-2xl font-bold text-gray-900">{{ guestName | escape }}</h1>
     <p class="text-sm text-gray-500 mt-1">{{ organization | escape }}{% if email != blank %} &middot; {{ email | escape }}{% endif %}</p>
 

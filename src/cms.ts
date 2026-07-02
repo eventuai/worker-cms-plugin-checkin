@@ -38,8 +38,54 @@ export {
 };
 
 export class CmsClient extends BaseCmsClient {
+  private readonly cmsUrl: string;
+  private readonly pluginSecret: string;
+
   constructor(env: CmsClientEnv) {
     super({ cmsUrl: env.CMS_URL, pluginSecret: env.PLUGIN_SECRET, pluginId: PLUGIN_ID, fetcher: (input, init) => globalThis.fetch(input, init) });
+    this.cmsUrl = String(env.CMS_URL ?? '').replace(/\/+$/, '');
+    this.pluginSecret = String(env.PLUGIN_SECRET ?? '');
+  }
+
+  async listByPointerValues(
+    pageType: string,
+    pointerKey: string,
+    pointerValues: Array<number | string>,
+    opts: { q?: string; limit?: number; offset?: number } = {},
+  ): Promise<{ pages: CmsPage[]; total: number }> {
+    const values = pointerValues.map(String).filter(Boolean).filter((value, index, all) => all.indexOf(value) === index);
+    if (values.length === 0) return { pages: [], total: 0 };
+
+    const params = new URLSearchParams({
+      page_type: pageType,
+      pointer_key: pointerKey,
+      pointer_values: values.join(','),
+    });
+    if (opts.q) params.set('q', opts.q);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+
+    const path = `/pages?${params.toString()}`;
+    const response = await globalThis.fetch(`${this.cmsUrl}/__cms${path}`, {
+      method: 'GET',
+      headers: {
+        'x-plugin-secret': this.pluginSecret,
+        'x-plugin-id': PLUGIN_ID,
+      },
+    });
+    if (!response.ok) throw new CmsApiError(response.status, await cmsErrorCode(response), 'GET', path);
+    return response.json() as Promise<{ pages: CmsPage[]; total: number }>;
+  }
+}
+
+async function cmsErrorCode(response: Response): Promise<string> {
+  const text = await response.text().catch(() => '');
+  if (!text) return 'error';
+  try {
+    const body = JSON.parse(text) as { error?: unknown };
+    return typeof body.error === 'string' && body.error ? body.error : 'error';
+  } catch {
+    return text.replace(/\s+/g, ' ').trim().slice(0, 160) || 'error';
   }
 }
 

@@ -293,7 +293,8 @@ describe('kiosk (login-gated admin surface)', () => {
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
         guestSearches += 1;
         expect(url.searchParams.get('q')).toBe('陳');
-        expect(url.searchParams.has('pointer_key')).toBe(false);
+        expect(url.searchParams.get('pointer_key')).toBe('mail_list');
+        expect(url.searchParams.get('pointer_values')).toBe('12,13');
         expect(url.searchParams.has('pointer_value')).toBe(false);
         return Response.json({ pages: [
           { id: 34, page_type: 'guest', name: '陳美玲', page_id: 12, lect: { organization: 'Analytical Engines' } },
@@ -332,7 +333,9 @@ describe('kiosk (login-gated admin surface)', () => {
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
         guestSearches += 1;
         expect(url.searchParams.get('q')).toBe('vegan');
-        expect(url.searchParams.has('pointer_key')).toBe(false);
+        expect(url.searchParams.get('pointer_key')).toBe('mail_list');
+        expect(url.searchParams.get('pointer_values')).toBe('12');
+        expect(url.searchParams.has('pointer_value')).toBe(false);
         return Response.json({ pages: [
           { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { rsvp_custom_meal_preference: 'Vegan' } },
           { id: 35, page_type: 'guest', name: 'Bob Halal', page_id: 12, lect: { rsvp_custom_meal_preference: 'Halal' } },

@@ -3,24 +3,62 @@
   "name": "Check-in",
   "version": "0.1.0",
   "nav": [
-    { "label": "Check-in", "href": "dashboard", "roles": ["admin", "editor", "moderator", "event-helper"] }
+    {
+      "label": "Check-in",
+      "href": "dashboard",
+      "roles": [
+        "admin",
+        "editor",
+        "moderator",
+        "event-helper"
+      ]
+    }
   ],
   "permissions": [
-    { "value": "checkin:view", "label": "Check-in: view events and guest lists" },
-    { "value": "checkin:checkin", "label": "Check-in: check in and undo guests" }
+    {
+      "value": "checkin:view",
+      "label": "Check-in: view events and guest lists"
+    },
+    {
+      "value": "checkin:checkin",
+      "label": "Check-in: check in and undo guests"
+    }
   ],
   "assets": [
-    { "path": "/assets/js/zxing-wasm.js", "label": "Barcode/QR decoder (WASM)" },
-    { "path": "/assets/wasm/zxing_reader.wasm", "label": "Barcode/QR decoder binary" },
-    { "path": "/assets/js/kiosk.js", "label": "Kiosk camera scanner" },
-    { "path": "/assets/js/event-dashboard.js", "label": "Event dashboard controls" },
-    { "path": "/assets/js/encoder.js", "label": "Badge encoder" },
-    { "path": "/assets/js/printer.js", "label": "Badge printer" }
+    {
+      "path": "/assets/js/zxing-wasm.js",
+      "label": "Barcode/QR decoder (WASM)"
+    },
+    {
+      "path": "/assets/wasm/zxing_reader.wasm",
+      "label": "Barcode/QR decoder binary"
+    },
+    {
+      "path": "/assets/js/kiosk.js",
+      "label": "Kiosk camera scanner"
+    },
+    {
+      "path": "/assets/js/event-dashboard.js",
+      "label": "Event dashboard controls"
+    },
+    {
+      "path": "/assets/js/encoder.js",
+      "label": "Badge encoder"
+    },
+    {
+      "path": "/assets/js/printer.js",
+      "label": "Badge printer"
+    }
   ],
   "contentTypes": {
-    "readTypes": ["event", "mail_list", "label"],
-    "blueprint": {
-      "guest": []
-    }
+    "readTypes": [
+      "event",
+      "mail_list",
+      "label"
+    ],
+    "blueprint": {},
+    "writeTypes": [
+      "guest"
+    ]
   }
 }

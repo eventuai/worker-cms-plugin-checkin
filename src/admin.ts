@@ -368,11 +368,8 @@ async function searchGuestsInEvent(cms: CmsClient, listById: Map<number, CmsPage
   if (listById.size === 0) return [];
   const query = q.trim();
   if (!query) return [];
-  const { pages } = await cms.list('guest', { q: query, limit: 500 });
-  return pages.filter((guest) => {
-    const listId = guestListId(guest);
-    return listId !== null && listById.has(listId);
-  });
+  const { pages } = await cms.listByPointerValues('guest', 'mail_list', [...listById.keys()], { q: query, limit: 500 });
+  return pages;
 }
 
 function guestListId(guest: CmsPage): number | null {
@@ -493,6 +490,10 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
     eventName: event.name,
     guestId: guest.id,
     guestName: guest.name,
+    // Guest photo (the legacy attendee-details screen showed one). The guest
+    // `picture` attr is an absolute URL or a CMS media path; the kiosk renders
+    // under the CMS admin proxy, so root-relative paths resolve correctly.
+    picture: attr(guest.lect, 'picture'),
     organization: attr(guest.lect, 'organization'),
     email: attr(guest.lect, 'email'),
     canCheckIn: access.canCheckIn,
