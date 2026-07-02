@@ -6,7 +6,20 @@
   {% if error != blank %}<p class="mb-4 bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm">{{ error | escape }}</p>{% endif %}
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-    <video id="scanVideo" class="w-full rounded-lg" style="aspect-ratio:1/1;object-fit:cover;background:#111827" playsinline autoplay muted></video>
+    <div id="scanVideoFrame" class="relative w-full rounded-lg overflow-hidden bg-gray-900" style="aspect-ratio:1/1;touch-action:none">
+      <video id="scanVideo" class="w-full h-full" style="object-fit:cover;background:#111827" playsinline autoplay muted></video>
+      <div class="absolute inset-x-3 bottom-3 flex items-center gap-2">
+        <label for="scanCameraSelect" class="sr-only">Camera</label>
+        <select id="scanCameraSelect" class="max-w-1/2 min-w-0 flex-1 rounded-lg border border-white/40 bg-white/90 px-3 py-2 text-xs text-gray-900 shadow-sm backdrop-blur">
+          <option value="">Camera</option>
+        </select>
+        <button type="button" id="scanMirrorToggle" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-white/40 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm backdrop-blur hover:bg-white" aria-pressed="false" title="Mirror camera" aria-label="Mirror camera">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 7H3m0 0 3-3M3 7l3 3m10 7h5m0 0-3-3m3 3-3 3M4 12h16M10 4v16m4-16v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
     <p id="scanStatus" class="text-center text-sm text-gray-500 mt-2">Starting camera&hellip;</p>
 
     <form id="scanCodeForm" method="post" action="{{ scanAction | escape }}" class="mt-4">

@@ -160,7 +160,11 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('<div class="max-w-md">');
     expect(html).toContain('&larr; Launch Party</a>');
     expect(html).not.toContain('<h1 class="text-2xl font-bold text-gray-900">Launch Party</h1>');
+    expect(html).toContain('id="scanVideoFrame"');
+    expect(html).toContain('absolute inset-x-3 bottom-3');
     expect(html).toContain('id="scanVideo"');
+    expect(html).toContain('id="scanCameraSelect"');
+    expect(html).toContain('id="scanMirrorToggle"');
     // Scripts must point at the CMS-prefixed asset URL so the host allowlist keeps them.
     expect(html).toContain('/admin/plugins/checkin/assets/js/zxing-wasm.js');
     expect(html).toContain('/admin/plugins/checkin/assets/wasm/zxing_reader.wasm');
@@ -169,6 +173,12 @@ describe('kiosk (login-gated admin surface)', () => {
     const kioskScript = await readFile(fileURLToPath(new URL('../views/assets/js/kiosk.js', import.meta.url).href), 'utf8');
     expect(kioskScript).toContain('waitForZXingWASM');
     expect(kioskScript).toContain('getZXingModule');
+    expect(kioskScript).toContain('enumerateDevices');
+    expect(kioskScript).toContain("addEventListener('wheel'");
+    expect(kioskScript).toContain("addEventListener('touchmove'");
+    expect(kioskScript).toContain('scanMirrorToggle');
+    expect(kioskScript).toContain('checkin:kiosk:scanner-mirrored');
+    expect(kioskScript).toContain('writeBooleanSetting(KIOSK_MIRROR_STORAGE_KEY, mirrored)');
   });
 
   it('checks a guest in from the kiosk and redirects back to the guest, scoping the guest to the event', async () => {

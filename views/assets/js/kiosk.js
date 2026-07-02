@@ -22,6 +22,7 @@ var KIOSK_ZXING_OVERRIDES = {
   // default, which the admin CSP blocks. See views/assets/wasm.
   locateFile: (path, prefix) => (path.endsWith('.wasm') ? KIOSK_ZXING_WASM_URL : prefix + path),
 };
+var KIOSK_MIRROR_STORAGE_KEY = 'checkin:kiosk:scanner-mirrored';
 
 async function initKiosk() {
   initScanner();
@@ -54,15 +55,28 @@ async function initScanner() {
   const video = document.getElementById('scanVideo');
   if (!video) return;
 
+  const frame = document.getElementById('scanVideoFrame');
   const statusEl = document.getElementById('scanStatus');
+  const cameraSelect = document.getElementById('scanCameraSelect');
+  const mirrorToggle = document.getElementById('scanMirrorToggle');
   const codeForm = document.getElementById('scanCodeForm');
   const codeInput = document.getElementById('scanCodeInput');
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   let scanning = true;
+  let stream = null;
+  let scanTimer = 0;
+  let scanRun = 0;
+  let selectedDeviceId = '';
+  let mirrored = readBooleanSetting(KIOSK_MIRROR_STORAGE_KEY);
+  let zoom = 1;
+  let pinchStartDistance = 0;
+  let pinchStartZoom = 1;
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+    if (cameraSelect) cameraSelect.disabled = true;
+    if (mirrorToggle) mirrorToggle.disabled = true;
     return;
   }
 
@@ -75,28 +89,125 @@ async function initScanner() {
     return;
   }
 
-  if (statusEl) statusEl.textContent = 'Starting camera…';
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } } })
-    .then((stream) => {
-      video.srcObject = stream;
-      video.play();
-      if (statusEl) statusEl.textContent = 'Scanning for codes…';
-      scheduleScan();
-    })
-    .catch((error) => {
-      console.error('Camera unavailable:', error);
-      if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+  if (cameraSelect) {
+    cameraSelect.addEventListener('change', () => {
+      selectedDeviceId = cameraSelect.value;
+      startCamera();
     });
-
-  function scheduleScan() {
-    if (scanning) setTimeout(tick, 300);
+  }
+  if (mirrorToggle) {
+    mirrorToggle.setAttribute('aria-pressed', String(mirrored));
+    mirrorToggle.classList.toggle('bg-gray-100', mirrored);
+    mirrorToggle.addEventListener('click', () => {
+      mirrored = !mirrored;
+      mirrorToggle.setAttribute('aria-pressed', String(mirrored));
+      mirrorToggle.classList.toggle('bg-gray-100', mirrored);
+      writeBooleanSetting(KIOSK_MIRROR_STORAGE_KEY, mirrored);
+      updateVideoTransform();
+    });
+  }
+  if (frame) {
+    frame.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      setZoom(zoom + (event.deltaY < 0 ? 0.15 : -0.15));
+    }, { passive: false });
+    frame.addEventListener('touchstart', (event) => {
+      if (event.touches.length !== 2) return;
+      pinchStartDistance = touchDistance(event.touches[0], event.touches[1]);
+      pinchStartZoom = zoom;
+    }, { passive: true });
+    frame.addEventListener('touchmove', (event) => {
+      if (event.touches.length !== 2 || pinchStartDistance <= 0) return;
+      event.preventDefault();
+      const nextDistance = touchDistance(event.touches[0], event.touches[1]);
+      setZoom(pinchStartZoom * (nextDistance / pinchStartDistance));
+    }, { passive: false });
+    frame.addEventListener('touchend', () => {
+      pinchStartDistance = 0;
+    });
   }
 
-  async function tick() {
+  updateVideoTransform();
+  startCamera();
+
+  async function startCamera() {
+    const run = ++scanRun;
+    scanning = true;
+    window.clearTimeout(scanTimer);
+    stopStream();
+
+    if (statusEl) statusEl.textContent = 'Starting camera…';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: selectedDeviceId
+          ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 1280 } }
+          : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } },
+      });
+      if (run !== scanRun) {
+        stopTracks(stream);
+        return;
+      }
+
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      if (!selectedDeviceId) selectedDeviceId = track && track.getSettings ? track.getSettings().deviceId || '' : '';
+      await refreshCameraList();
+      if (statusEl) statusEl.textContent = 'Scanning for codes…';
+      scheduleScan(run);
+    } catch (error) {
+      console.error('Camera unavailable:', error);
+      if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+      if (cameraSelect) cameraSelect.disabled = true;
+    }
+  }
+
+  function stopStream() {
+    if (!stream) return;
+    stopTracks(stream);
+    stream = null;
+  }
+
+  function stopTracks(targetStream) {
+    targetStream.getTracks().forEach((track) => track.stop());
+  }
+
+  async function refreshCameraList() {
+    if (!cameraSelect || !navigator.mediaDevices.enumerateDevices) return;
+
+    try {
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'videoinput');
+      const currentValue = selectedDeviceId || cameraSelect.value;
+      cameraSelect.innerHTML = '';
+      devices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || `Camera ${index + 1}`;
+        cameraSelect.appendChild(option);
+      });
+      if (currentValue && devices.some((device) => device.deviceId === currentValue)) {
+        cameraSelect.value = currentValue;
+      } else if (devices[0]) {
+        cameraSelect.value = devices[0].deviceId;
+        selectedDeviceId = devices[0].deviceId;
+      }
+      cameraSelect.disabled = devices.length <= 1;
+    } catch (error) {
+      console.error('Could not list cameras:', error);
+      cameraSelect.disabled = true;
+    }
+  }
+
+  function scheduleScan(run) {
+    if (scanning && run === scanRun) scanTimer = window.setTimeout(() => tick(run), 300);
+  }
+
+  async function tick(run) {
+    if (run !== scanRun) return;
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      drawZoomedFrame();
       try {
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
         const results = await ZXingWASM.readBarcodes(blob, {
@@ -106,6 +217,7 @@ async function initScanner() {
         });
         if (results && results.length > 0 && results[0].text) {
           scanning = false;
+          stopStream();
           onDecoded(results[0].text);
           return;
         }
@@ -119,7 +231,30 @@ async function initScanner() {
         // Decode miss on this frame — keep scanning.
       }
     }
-    scheduleScan();
+    scheduleScan(run);
+  }
+
+  function drawZoomedFrame() {
+    const sourceWidth = video.videoWidth / zoom;
+    const sourceHeight = video.videoHeight / zoom;
+    const sourceX = (video.videoWidth - sourceWidth) / 2;
+    const sourceY = (video.videoHeight - sourceHeight) / 2;
+    ctx.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+  }
+
+  function setZoom(nextZoom) {
+    zoom = Math.max(1, Math.min(4, nextZoom));
+    updateVideoTransform();
+  }
+
+  function updateVideoTransform() {
+    const mirror = mirrored ? 'scaleX(-1)' : 'scaleX(1)';
+    video.style.transform = `${mirror} scale(${zoom})`;
+    video.style.transformOrigin = 'center center';
+  }
+
+  function touchDistance(first, second) {
+    return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
   }
 
   function onDecoded(text) {
@@ -177,6 +312,22 @@ function checkinLinkPath(text) {
     return url.pathname.startsWith('/checkin/') ? url.pathname + url.search : null;
   } catch {
     return null;
+  }
+}
+
+function readBooleanSetting(key) {
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch (error) {
+    return false;
+  }
+}
+
+function writeBooleanSetting(key, value) {
+  try {
+    window.localStorage.setItem(key, value ? '1' : '0');
+  } catch (error) {
+    // Ignore storage failures; the control still works for this page view.
   }
 }
 
