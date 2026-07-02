@@ -1,27 +1,52 @@
 <div class="flex items-center justify-between gap-4 mb-4">
   <div>
-    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref | escape }}">← Check-in</a>
+    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref | escape }}">← Events</a>
     <h1 class="text-2xl font-bold text-gray-900">{{ eventName | escape }}</h1>
-    <p class="mt-1 text-sm text-gray-500">{{ kioskTitle | escape }}</p>
-  </div>
-  <div class="text-right">
-    <a class="inline-block text-indigo-600 font-medium hover:text-indigo-800" href="{{ launchKioskHref | escape }}">Launch kiosk →</a>
-    <p class="mt-1 text-xs text-gray-400">Opens the door check-in scanner</p>
   </div>
 </div>
 
 <!-- Quick navigation -->
-<div class="flex gap-2 mb-4">
-  <a href="{{ dashboardHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Events</a>
-  <a href="{{ scanHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Scan</a>
-  <a href="{{ settingsHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Settings</a>
+<div class="flex gap-2">
+  <a href="{{ dashboardHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <span>Events</span>
+  </a>
+  <a href="{{ scanHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <span>Scan</span>
+  </a>
+  <a href="{{ settingsHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4M10 8h4M18 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <span>Settings</span>
+  </a>
 </div>
 
 <!-- Search all guests on this event -->
-<form method="get" action="{{ searchHref | escape }}" class="flex gap-2 mb-4 sticky top-4 z-10 bg-gray-50 drop-shadow-lg">
+<form method="get" action="{{ searchHref | escape }}" class="flex gap-2 py-4 sticky top-0 z-10 bg-gray-50 drop-shadow-lg">
   <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Search all guests by name, email or company…">
   <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer whitespace-nowrap">Search</button>
 </form>
+
+{% if hasCustomFields %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
+  <h2 class="text-lg font-bold text-gray-900 mb-3">Search by custom field</h2>
+  <form method="get" action="{{ searchHref | escape }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+    <select name="field" data-custom-field-select data-storage-key="checkin:event-dashboard:custom-field:{{ eventId | escape }}" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+      {% for field in customFields %}
+        <option value="{{ field.value | escape }}">{{ field.label | escape }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Value to search…">
+    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
+  </form>
+</div>
+{% endif %}
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
   <table class="w-full min-w-[560px] text-left relative">
@@ -39,21 +64,6 @@
     </tbody>
   </table>
 </div>
-
-{% if hasCustomFields %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
-  <h2 class="text-lg font-bold text-gray-900 mb-3">Search by custom field</h2>
-  <form method="get" action="{{ searchHref | escape }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-    <select name="field" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-      {% for field in customFields %}
-        <option value="{{ field.value | escape }}">{{ field.label | escape }}</option>
-      {% endfor %}
-    </select>
-    <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Value to search…">
-    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
-  </form>
-</div>
-{% endif %}
 
 <!-- Event summary -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
@@ -81,10 +91,10 @@
 <!-- Check in an unlisted (walk-in) guest -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4 sticky bottom-0 z-10 drop-shadow-lg" data-walkin-panel data-storage-key="checkin:event-dashboard:walkin-collapsed:{{ eventId | escape }}">
   <div class="flex items-start justify-between gap-4">
-    <h2 class="text-lg font-bold text-gray-900">Check in unlisted guest</h2>
-    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="true" aria-controls="walkinPanelBody" title="Collapse panel" aria-label="Collapse panel">
+    <button type="button" class="text-left text-lg font-bold text-gray-900 hover:text-indigo-700" data-walkin-heading-toggle aria-expanded="true" aria-controls="walkinPanelBody">Check in unlisted guest</button>
+    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="true" aria-controls="walkinPanelBody" title="Collapse panel" aria-label="Collapse panel">
       <svg data-walkin-toggle-icon class="h-4 w-4 transition-transform" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
       <span data-walkin-toggle-label class="hidden sm:inline">Collapse</span>
     </button>
@@ -101,5 +111,8 @@
     </form>
   </div>
 </div>
+{% endif %}
+
+{% if hasCustomFields or canCheckIn %}
 <script src="/admin/plugins/checkin/assets/js/event-dashboard.js"></script>
 {% endif %}

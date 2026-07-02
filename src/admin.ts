@@ -73,8 +73,9 @@ export async function handleCheckinAdmin(
 
 async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Promise<Response> {
   const { pages: events } = await cms.list('event', { limit: 500 });
+  const activeEvents = events.filter((event) => isActiveEvent(event));
   return adminView(views, 'Check-in', 'dashboard', {
-    events: events.map((event) => ({
+    events: activeEvents.map((event) => ({
       id: event.id,
       name: event.name,
       href: `${ADMIN_BASE}/events/${event.id}`,
@@ -82,6 +83,36 @@ async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Pro
       requiresLogin: attr(event.lect, 'checkin_require_login') === 'yes',
     })),
   }, jsonOnly);
+}
+
+function isActiveEvent(event: CmsPage, now = new Date()): boolean {
+  const start = eventDateMs(event.start, event.timezone, 'start');
+  const end = eventDateMs(event.end, event.timezone, 'end');
+  const current = now.getTime();
+  return start !== null && start <= current && (end === null || current <= end);
+}
+
+function eventDateMs(value: string | null, timezone: string | null, boundary: 'start' | 'end'): number | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const withTime = dateOnly
+    ? `${raw}T${boundary === 'start' ? '00:00:00' : '23:59:59.999'}`
+    : raw.replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T').replace(/\s+([+-]\d{2}:?\d{2})$/, '$1');
+  const withZone = hasTimezone(withTime) ? withTime : `${withTime}${normalizeTimezone(timezone)}`;
+  const ms = Date.parse(withZone);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function hasTimezone(value: string): boolean {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/.test(value);
+}
+
+function normalizeTimezone(timezone: string | null): string {
+  const value = String(timezone ?? '').trim();
+  if (/^[+-]\d{2}:?\d{2}$/.test(value)) return value;
+  return 'Z';
 }
 
 async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
@@ -289,9 +320,9 @@ async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request
     const code = String(form.get('code') ?? '').trim();
     const guest = code ? await findGuestByCodeInEvent(cms, event.id, code) : null;
     if (guest) return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
-    return kioskView(views, `Scan — ${event.name}`, 'kiosk-scan', { ...data, error: 'No guest found for that code.' }, jsonOnly, { camera: true });
+    return kioskView(views, event.name, 'kiosk-scan', { ...data, error: 'No guest found for that code.' }, jsonOnly, { camera: true });
   }
-  return kioskView(views, `Scan — ${event.name}`, 'kiosk-scan', data, jsonOnly, { camera: true });
+  return kioskView(views, event.name, 'kiosk-scan', data, jsonOnly, { camera: true });
 }
 
 async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: URL, jsonOnly: boolean): Promise<Response> {

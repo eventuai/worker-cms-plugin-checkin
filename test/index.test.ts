@@ -44,6 +44,7 @@ async function renderedText(response: Response): Promise<string> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('plugin contract', () => {
@@ -62,11 +63,23 @@ describe('plugin contract', () => {
     expect(response.status).toBe(403);
   });
 
-  it('renders the dashboard with events fetched from the CMS', async () => {
+  it('renders the dashboard with only active events fetched from the CMS', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-03T04:00:00Z'));
+
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'event') {
-        return Response.json({ pages: [{ id: 7, name: 'Launch Party', lect: { kiosk_title: 'Welcome!' } }], total: 1 });
+        return Response.json({
+          pages: [
+            { id: 7, name: 'Launch Party', start: '2026-07-03 09:00 +0800', end: '2026-07-03 18:00 +0800', timezone: '+0800', lect: { kiosk_title: 'Welcome!' } },
+            { id: 11, name: 'Ongoing Party', start: '2026-07-01', end: null, timezone: '+0800', lect: { kiosk_title: 'Still open' } },
+            { id: 8, name: 'Past Party', start: '2026-07-01', end: '2026-07-02', timezone: '+0800', lect: { kiosk_title: 'Too late' } },
+            { id: 9, name: 'Future Party', start: '2026-07-04', end: '2026-07-05', timezone: '+0800', lect: { kiosk_title: 'Too early' } },
+            { id: 10, name: 'Undated Party', start: null, end: null, timezone: '+0800', lect: { kiosk_title: 'No dates' } },
+          ],
+          total: 4,
+        });
       }
       return new Response('not found', { status: 404 });
     }));
@@ -77,6 +90,11 @@ describe('plugin contract', () => {
     const html = await renderedText(response);
     expect(html).toContain('Launch Party');
     expect(html).toContain('Welcome!');
+    expect(html).toContain('Ongoing Party');
+    expect(html).toContain('Still open');
+    expect(html).not.toContain('Past Party');
+    expect(html).not.toContain('Future Party');
+    expect(html).not.toContain('Undated Party');
   });
 
   it('checks a guest in from the admin search results and PUTs the checkin block', async () => {
@@ -137,7 +155,11 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(response.headers.get('x-cms-chrome')).toBe('1');
     // Opt-in flag the host translates into a relaxed (camera + wasm) CSP.
     expect(response.headers.get('x-cms-permissions')).toBe('camera');
+    expect(decodeURIComponent(response.headers.get('x-cms-title') ?? '')).toBe('Launch Party');
     const html = await renderedText(response);
+    expect(html).toContain('<div class="max-w-md">');
+    expect(html).toContain('&larr; Launch Party</a>');
+    expect(html).not.toContain('<h1 class="text-2xl font-bold text-gray-900">Launch Party</h1>');
     expect(html).toContain('id="scanVideo"');
     // Scripts must point at the CMS-prefixed asset URL so the host allowlist keeps them.
     expect(html).toContain('/admin/plugins/checkin/assets/js/zxing-wasm.js');
@@ -264,8 +286,11 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('Search all guests');           // top search box
     expect(html).toContain('Search by custom field');       // custom-field search
     expect(html).toContain('Meal preference');              // derived custom field option
+    expect(html).toContain('data-custom-field-select');
+    expect(html).toContain('checkin:event-dashboard:custom-field:7');
     expect(html).toContain('Event summary');                // summary card
     expect(html).toContain('Check in unlisted guest');      // walk-in footer
+    expect(html).toContain('data-walkin-heading-toggle');
     expect(html).toContain('data-walkin-panel');
     expect(html).toContain('checkin:event-dashboard:walkin-collapsed:7');
     expect(html).toContain('/admin/plugins/checkin/assets/js/event-dashboard.js');

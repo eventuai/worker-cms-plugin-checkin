@@ -1,7 +1,6 @@
-<div class="max-w-md mx-auto">
+<div class="max-w-md">
   <div class="mb-4">
-    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName | escape }}</a>
-    <h1 class="text-2xl font-bold text-gray-900">Scan</h1>
+    <a class="inline-block text-xs font-medium text-gray-500 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName | escape }}</a>
   </div>
 
   {% if error != blank %}<p class="mb-4 bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm">{{ error | escape }}</p>{% endif %}
