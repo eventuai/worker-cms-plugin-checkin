@@ -23,6 +23,7 @@ var KIOSK_ZXING_OVERRIDES = {
   locateFile: (path, prefix) => (path.endsWith('.wasm') ? KIOSK_ZXING_WASM_URL : prefix + path),
 };
 var KIOSK_MIRROR_STORAGE_KEY = 'checkin:kiosk:scanner-mirrored';
+var KIOSK_CAMERA_STORAGE_KEY = 'checkin:kiosk:scanner-camera';
 
 async function initKiosk() {
   initScanner();
@@ -67,7 +68,7 @@ async function initScanner() {
   let stream = null;
   let scanTimer = 0;
   let scanRun = 0;
-  let selectedDeviceId = '';
+  let selectedDeviceId = readStringSetting(KIOSK_CAMERA_STORAGE_KEY);
   let mirrored = readBooleanSetting(KIOSK_MIRROR_STORAGE_KEY);
   let zoom = 1;
   let pinchStartDistance = 0;
@@ -92,6 +93,7 @@ async function initScanner() {
   if (cameraSelect) {
     cameraSelect.addEventListener('change', () => {
       selectedDeviceId = cameraSelect.value;
+      writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId);
       startCamera();
     });
   }
@@ -153,9 +155,16 @@ async function initScanner() {
       const track = stream.getVideoTracks()[0];
       if (!selectedDeviceId) selectedDeviceId = track && track.getSettings ? track.getSettings().deviceId || '' : '';
       await refreshCameraList();
+      if (selectedDeviceId) writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId);
       if (statusEl) statusEl.textContent = 'Scanning for codes…';
       scheduleScan(run);
     } catch (error) {
+      if (selectedDeviceId) {
+        selectedDeviceId = '';
+        writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, '');
+        startCamera();
+        return;
+      }
       console.error('Camera unavailable:', error);
       if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
       if (cameraSelect) cameraSelect.disabled = true;
@@ -187,10 +196,12 @@ async function initScanner() {
       });
       if (currentValue && devices.some((device) => device.deviceId === currentValue)) {
         cameraSelect.value = currentValue;
+        selectedDeviceId = currentValue;
       } else if (devices[0]) {
         cameraSelect.value = devices[0].deviceId;
         selectedDeviceId = devices[0].deviceId;
       }
+      if (selectedDeviceId) writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId);
       cameraSelect.disabled = devices.length <= 1;
     } catch (error) {
       console.error('Could not list cameras:', error);
@@ -326,6 +337,26 @@ function readBooleanSetting(key) {
 function writeBooleanSetting(key, value) {
   try {
     window.localStorage.setItem(key, value ? '1' : '0');
+  } catch (error) {
+    // Ignore storage failures; the control still works for this page view.
+  }
+}
+
+function readStringSetting(key) {
+  try {
+    return window.localStorage.getItem(key) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function writeStringSetting(key, value) {
+  try {
+    if (value) {
+      window.localStorage.setItem(key, value);
+    } else {
+      window.localStorage.removeItem(key);
+    }
   } catch (error) {
     // Ignore storage failures; the control still works for this page view.
   }

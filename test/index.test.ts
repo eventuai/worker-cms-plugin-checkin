@@ -180,6 +180,9 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(kioskScript).toContain('scanMirrorToggle');
     expect(kioskScript).toContain('checkin:kiosk:scanner-mirrored');
     expect(kioskScript).toContain('writeBooleanSetting(KIOSK_MIRROR_STORAGE_KEY, mirrored)');
+    expect(kioskScript).toContain('checkin:kiosk:scanner-camera');
+    expect(kioskScript).toContain('readStringSetting(KIOSK_CAMERA_STORAGE_KEY)');
+    expect(kioskScript).toContain('writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId)');
   });
 
   it('renders the kiosk settings page with the same left-aligned wrapper', async () => {
