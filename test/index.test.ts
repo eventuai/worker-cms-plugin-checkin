@@ -266,6 +266,9 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('Meal preference');              // derived custom field option
     expect(html).toContain('Event summary');                // summary card
     expect(html).toContain('Check in unlisted guest');      // walk-in footer
+    expect(html).toContain('data-walkin-panel');
+    expect(html).toContain('checkin:event-dashboard:walkin-collapsed:7');
+    expect(html).toContain('/admin/plugins/checkin/assets/js/event-dashboard.js');
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/scan');     // scan nav
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/settings'); // settings nav
     // 1 guest, 1 checked in → 100%

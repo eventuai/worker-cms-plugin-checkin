@@ -125,6 +125,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
   // kiosk link per event rather than one per list. It's a same-origin admin
   // route now (login-gated), so a plain relative path.
   return adminView(views, `Check-in — ${event.name}`, 'event-dashboard', {
+    eventId: event.id,
     eventName: event.name,
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
     canCheckIn: access.canCheckIn,
