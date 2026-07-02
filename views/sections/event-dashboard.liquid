@@ -18,7 +18,7 @@
 </div>
 
 <!-- Search all guests on this event -->
-<form method="get" action="{{ searchHref | escape }}" class="flex gap-2 mb-4">
+<form method="get" action="{{ searchHref | escape }}" class="flex gap-2 mb-4 sticky top-4 z-10 bg-gray-50 drop-shadow-lg">
   <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Search all guests by name, email or company…">
   <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer whitespace-nowrap">Search</button>
 </form>
@@ -77,33 +77,9 @@
   </div>
 </div>
 
-{% if sessions.size > 0 %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
-  <h2 class="text-lg font-bold text-gray-900 mb-3">Check-in sessions</h2>
-  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-    {% for session in sessions %}
-      <div class="border border-gray-200 rounded-lg p-3 text-center"><span class="text-sm text-gray-700">{{ session.name | escape }}</span></div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
-  <h2 class="text-lg font-bold text-gray-900 mb-3">Recent activity</h2>
-  {% if activity.size > 0 %}
-    <ul class="divide-y divide-gray-100">
-      {% for entry in activity %}
-        <li class="py-2 text-sm text-gray-700"><a class="text-indigo-600 font-medium hover:text-indigo-800" href="{{ entry.searchHref | escape }}">{{ entry.guestName | escape }}</a> — {{ entry.message | escape }} <span class="text-gray-400">({{ entry.listName | escape }}, {{ entry.date | escape }})</span></li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="text-sm text-gray-400">No check-ins yet.</p>
-  {% endif %}
-</div>
-
 {% if canCheckIn %}
 <!-- Check in an unlisted (walk-in) guest -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4 sticky bottom-0 z-10 drop-shadow-lg">
   <h2 class="text-lg font-bold text-gray-900 mb-3">Check in unlisted guest</h2>
   <p class="text-sm text-gray-500 mb-3">Adds a walk-in to the event's adhoc list and checks them in.</p>
   <form method="post" action="{{ walkinHref | escape }}" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
