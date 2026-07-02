@@ -1,6 +1,6 @@
 <div class="flex items-center justify-between gap-4 mb-4">
   <div>
-    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="/admin/plugins/checkin/dashboard">← Check-in</a>
+    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref | escape }}">← Check-in</a>
     <h1 class="text-2xl font-bold text-gray-900">{{ eventName | escape }}</h1>
     <p class="mt-1 text-sm text-gray-500">{{ kioskTitle | escape }}</p>
   </div>
@@ -9,6 +9,19 @@
     <p class="mt-1 text-xs text-gray-400">Opens the door check-in scanner</p>
   </div>
 </div>
+
+<!-- Quick navigation -->
+<div class="flex gap-2 mb-4">
+  <a href="{{ dashboardHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Events</a>
+  <a href="{{ scanHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Scan</a>
+  <a href="{{ settingsHref | escape }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Settings</a>
+</div>
+
+<!-- Search all guests on this event -->
+<form method="get" action="{{ searchHref | escape }}" class="flex gap-2 mb-4">
+  <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Search all guests by name, email or company…">
+  <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer whitespace-nowrap">Search</button>
+</form>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
   <table class="w-full min-w-[560px] text-left relative">
@@ -25,6 +38,43 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+{% if hasCustomFields %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
+  <h2 class="text-lg font-bold text-gray-900 mb-3">Search by custom field</h2>
+  <form method="get" action="{{ searchHref | escape }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+    <select name="field" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+      {% for field in customFields %}
+        <option value="{{ field.value | escape }}">{{ field.label | escape }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Value to search…">
+    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- Event summary -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
+  <h2 class="text-lg font-bold text-gray-900 mb-3">Event summary</h2>
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">All guests</div>
+      <div class="text-2xl font-bold text-gray-900">{{ summary.guestCount }}</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.guestTotal }} incl. plus guests</div>
+    </div>
+    <div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Checked in</div>
+      <div class="text-2xl font-bold text-green-800">{{ summary.checkedInCount }}</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInTotal }} incl. plus guests</div>
+    </div>
+    <div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Rate</div>
+      <div class="text-2xl font-bold text-gray-900">{{ summary.checkedInPercent }}%</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInCount }} / {{ summary.guestCount }} guests</div>
+    </div>
+  </div>
 </div>
 
 {% if sessions.size > 0 %}
@@ -50,3 +100,19 @@
     <p class="text-sm text-gray-400">No check-ins yet.</p>
   {% endif %}
 </div>
+
+{% if canCheckIn %}
+<!-- Check in an unlisted (walk-in) guest -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
+  <h2 class="text-lg font-bold text-gray-900 mb-3">Check in unlisted guest</h2>
+  <p class="text-sm text-gray-500 mb-3">Adds a walk-in to the event's adhoc list and checks them in.</p>
+  <form method="post" action="{{ walkinHref | escape }}" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <input type="text" name="name" required autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Full name *">
+    <input type="text" name="organization" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Organization">
+    <input type="email" name="email" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Email">
+    <input type="number" name="plus_guests" min="0" value="0" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Plus guests">
+    <input type="hidden" name="checkin" value="1">
+    <button type="submit" class="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Add &amp; check in</button>
+  </form>
+</div>
+{% endif %}

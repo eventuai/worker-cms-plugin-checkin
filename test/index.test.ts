@@ -201,4 +201,69 @@ describe('kiosk (login-gated admin surface)', () => {
     const response = await plugin.fetch(request('/kiosk/7'), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
     expect(response.status).toBe(404);
   });
+
+  it('filters a search by a custom field value derived from the event blocks', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: { _blocks: [{ _type: 'rsvp-custom', _weight: 0, custom_input: [{ label: 'Meal preference' }] }] } } });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } }], total: 1 });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        return Response.json({ pages: [
+          { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { rsvp_custom_meal_preference: 'Vegan' } },
+          { id: 35, page_type: 'guest', name: 'Bob Halal', page_id: 12, lect: { rsvp_custom_meal_preference: 'Halal' } },
+        ], total: 2 });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/search?field=rsvp_custom_meal_preference&q=vegan', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+    expect(html).toContain('Searching by Meal preference');
+    expect(html).toContain('Ada Lovelace');
+    expect(html).not.toContain('Bob Halal');
+  });
+});
+
+describe('event dashboard (parity with legacy guest-lists page)', () => {
+  function stubEventWithData() {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: { _blocks: [{ _type: 'rsvp-custom', _weight: 0, custom_input: [{ label: 'Meal preference' }] }] } } });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } }], total: 1 });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        return Response.json({ pages: [{ id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { organization: 'AE', plus_guests: '1', checkin: [{ status: 'checked-in', date: '2026-07-02' }] } }], total: 1 });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+  }
+
+  it('renders the search box, custom-field search, event summary, nav and walk-in footer', async () => {
+    stubEventWithData();
+    const response = await plugin.fetch(
+      request('/__plugin/admin/events/7', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    expect(response.status).toBe(200);
+    const html = await renderedText(response);
+    expect(html).toContain('Search all guests');           // top search box
+    expect(html).toContain('Search by custom field');       // custom-field search
+    expect(html).toContain('Meal preference');              // derived custom field option
+    expect(html).toContain('Event summary');                // summary card
+    expect(html).toContain('Check in unlisted guest');      // walk-in footer
+    expect(html).toContain('/admin/plugins/checkin/kiosk/7/scan');     // scan nav
+    expect(html).toContain('/admin/plugins/checkin/kiosk/7/settings'); // settings nav
+    // 1 guest, 1 checked in → 100%
+    expect(html).toContain('100%');
+  });
 });

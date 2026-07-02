@@ -3,7 +3,7 @@
 // is the door-side surface that doesn't need one.
 
 import { adminView, notFoundView, redirect, type CmsPage } from '@lionrockjs/worker-cms-plugin';
-import { attr, checkins, CmsClient, computeGuestListSummary, isAdhocGuestList, listByEvent, pointer, PLUGIN_ID } from './cms';
+import { attr, checkins, CmsClient, computeGuestListSummary, emptyGuestListSummary, isAdhocGuestList, listByEvent, pointer, PLUGIN_ID } from './cms';
 import {
   checkinSessions,
   createWalkInGuest,
@@ -22,6 +22,7 @@ import {
   undoCheckin,
 } from './checkin-actions';
 import { eventLabels, guestTokens, labelFrame, renderLabel } from './labels';
+import { eventCustomFields, guestCustomFieldValue, type CustomField } from './custom-fields';
 import { forbidden, type CheckinAccess } from './permissions';
 
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
@@ -42,7 +43,7 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
-    return eventDashboard(cms, views, eventId, jsonOnly);
+    return eventDashboard(cms, views, eventId, jsonOnly, access);
   }
 
   if (section === 'kiosk') {
@@ -83,7 +84,7 @@ async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Pro
   }, jsonOnly);
 }
 
-async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean): Promise<Response> {
+async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
   const event = await cms.get(eventId);
   if (event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
@@ -106,6 +107,19 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20);
 
+  // Whole-event totals (the "Event Summary" card), aggregated from the
+  // per-list tallies computeGuestListSummary already produced.
+  const summary = listSummaries.reduce((acc, { summary: s }) => ({
+    guest_count: acc.guest_count + s.guest_count,
+    guest_total: acc.guest_total + s.guest_total,
+    checked_in_count: acc.checked_in_count + s.checked_in_count,
+    checked_in_total: acc.checked_in_total + s.checked_in_total,
+  }), emptyGuestListSummary());
+  const checkedInPercent = summary.guest_count > 0 ? Math.round((summary.checked_in_count / summary.guest_count) * 100) : 0;
+
+  const kioskBase = `${ADMIN_BASE}/kiosk/${event.id}`;
+  const customFields = eventCustomFields(event, lists);
+
   // The kiosk is scoped to the whole event (scan/search cross every guest
   // list on it — see handleKioskAdmin), not to one list, so there's a single
   // kiosk link per event rather than one per list. It's a same-origin admin
@@ -113,17 +127,33 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
   return adminView(views, `Check-in — ${event.name}`, 'event-dashboard', {
     eventName: event.name,
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
-    launchKioskHref: `${ADMIN_BASE}/kiosk/${event.id}/scan`,
+    canCheckIn: access.canCheckIn,
+    launchKioskHref: `${kioskBase}/scan`,
+    // Bottom nav + top search targets.
+    dashboardHref: `${ADMIN_BASE}/dashboard`,
+    scanHref: `${kioskBase}/scan`,
+    settingsHref: `${kioskBase}/settings`,
+    searchHref: `${kioskBase}/search`,
+    walkinHref: `${kioskBase}/adhoc-guest`,
+    customFields: customFields.map((field) => ({ value: field.key, label: field.label })),
+    hasCustomFields: customFields.length > 0,
+    summary: {
+      guestCount: summary.guest_count,
+      guestTotal: summary.guest_total,
+      checkedInCount: summary.checked_in_count,
+      checkedInTotal: summary.checked_in_total,
+      checkedInPercent,
+    },
     sessions: checkinSessions(event),
-    lists: listSummaries.map(({ list, summary }) => ({
+    lists: listSummaries.map(({ list, summary: s }) => ({
       id: list.id,
       name: list.name,
       allowCheckin: attr(list.lect, 'allow_checkin') !== 'no',
       searchHref: `${ADMIN_BASE}/rsvp/${list.id}/guests/search`,
-      checkedIn: summary.checked_in_count,
-      total: summary.guest_count,
-      checkedInHeadcount: summary.checked_in_total,
-      totalHeadcount: summary.guest_total,
+      checkedIn: s.checked_in_count,
+      total: s.guest_count,
+      checkedInHeadcount: s.checked_in_total,
+      totalHeadcount: s.guest_total,
     })),
     activity,
   }, jsonOnly);
@@ -265,10 +295,20 @@ async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request
 
 async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: URL, jsonOnly: boolean): Promise<Response> {
   const q = url.searchParams.get('q') ?? '';
+  // `field` selects a custom-field search (match that field's value) instead of
+  // the default name/email/organization/phone search.
+  const fieldParam = url.searchParams.get('field')?.trim() ?? '';
   const lists = q ? await listByEvent(cms, 'mail_list', event.id) : [];
+  const customField = fieldParam
+    ? eventCustomFields(event, lists).find((field) => field.key === fieldParam || field.legacyKey === fieldParam) ?? null
+    : null;
+
   const guests: Array<{ id: number; name: string; organization: string; listName: string; checkedIn: boolean; guestHref: string }> = [];
   for (const list of lists) {
-    for (const guest of await searchGuests(cms, list.id, q)) {
+    const matches = customField
+      ? await searchGuestsByCustomField(cms, list.id, customField, q)
+      : await searchGuests(cms, list.id, q);
+    for (const guest of matches) {
       guests.push({
         id: guest.id,
         name: guest.name,
@@ -283,10 +323,22 @@ async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: 
     eventName: event.name,
     eventId: event.id,
     query: q,
+    field: customField ? customField.key : '',
+    fieldLabel: customField ? customField.label : '',
     guests,
     scanHref: `${KIOSK_BASE}/${event.id}/scan`,
     settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
   }, jsonOnly);
+}
+
+/** Guests on a list whose custom-field value contains `q` (case-insensitive). */
+async function searchGuestsByCustomField(cms: CmsClient, listId: number, field: CustomField, q: string): Promise<CmsPage[]> {
+  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, limit: 500 });
+  const needle = q.trim().toLowerCase();
+  return pages.filter((guest) => {
+    const value = guestCustomFieldValue(guest, field).toLowerCase();
+    return value !== '' && value.includes(needle);
+  });
 }
 
 async function kioskAdhocGuest(cms: CmsClient, views: Fetcher, event: CmsPage, request: Request, jsonOnly: boolean): Promise<Response> {
