@@ -15,16 +15,15 @@ var KIOSK_ASSET_QUERY = (function () {
   }
 })();
 
-function initKiosk() {
+var KIOSK_ZXING_WASM_URL = '/admin/plugins/checkin/assets/wasm/zxing_reader.wasm' + KIOSK_ASSET_QUERY;
+var KIOSK_ZXING_OVERRIDES = {
   // Point the decoder at the CMS-served, admin-approved wasm binary (same
   // origin, so connect-src 'self' allows it) instead of zxing's jsdelivr
   // default, which the admin CSP blocks. See views/assets/wasm.
-  if (typeof ZXingWASM !== 'undefined' && ZXingWASM.setZXingModuleOverrides) {
-    ZXingWASM.setZXingModuleOverrides({
-      locateFile: (path, prefix) =>
-        path.endsWith('.wasm') ? '/admin/plugins/checkin/assets/wasm/zxing_reader.wasm' + KIOSK_ASSET_QUERY : prefix + path,
-    });
-  }
+  locateFile: (path, prefix) => (path.endsWith('.wasm') ? KIOSK_ZXING_WASM_URL : prefix + path),
+};
+
+async function initKiosk() {
   initScanner();
   initBadgePrint();
   initAdhocToggle();
@@ -51,9 +50,9 @@ function initAdhocToggle() {
 
 // ── Camera scanning ─────────────────────────────────────────────────────
 
-function initScanner() {
+async function initScanner() {
   const video = document.getElementById('scanVideo');
-  if (!video || typeof ZXingWASM === 'undefined') return;
+  if (!video) return;
 
   const statusEl = document.getElementById('scanStatus');
   const codeForm = document.getElementById('scanCodeForm');
@@ -62,6 +61,21 @@ function initScanner() {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   let scanning = true;
 
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+    return;
+  }
+
+  try {
+    if (statusEl) statusEl.textContent = 'Loading scanner…';
+    await prepareScannerDecoder();
+  } catch (error) {
+    console.error('Scanner decoder unavailable:', error);
+    if (statusEl) statusEl.textContent = 'Scanner unavailable — use manual entry below.';
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = 'Starting camera…';
   navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } } })
     .then((stream) => {
       video.srcObject = stream;
@@ -96,6 +110,12 @@ function initScanner() {
           return;
         }
       } catch (error) {
+        if (isDecoderLoadError(error)) {
+          console.error('Scanner decoder failed after camera start:', error);
+          scanning = false;
+          if (statusEl) statusEl.textContent = 'Scanner unavailable — use manual entry below.';
+          return;
+        }
         // Decode miss on this frame — keep scanning.
       }
     }
@@ -112,6 +132,42 @@ function initScanner() {
     if (codeInput) codeInput.value = text;
     if (codeForm) codeForm.submit();
   }
+}
+
+async function prepareScannerDecoder() {
+  const decoder = await waitForZXingWASM();
+  if (!decoder || !decoder.readBarcodes) throw new Error('ZXingWASM did not load');
+
+  if (decoder.purgeZXingModule) decoder.purgeZXingModule();
+  if (decoder.setZXingModuleOverrides) decoder.setZXingModuleOverrides(KIOSK_ZXING_OVERRIDES);
+  if (decoder.getZXingModule) {
+    await decoder.getZXingModule(KIOSK_ZXING_OVERRIDES);
+  }
+}
+
+function waitForZXingWASM() {
+  if (typeof ZXingWASM !== 'undefined') return Promise.resolve(ZXingWASM);
+
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const timeoutMs = 8000;
+    const timer = setInterval(() => {
+      if (typeof ZXingWASM !== 'undefined') {
+        clearInterval(timer);
+        resolve(ZXingWASM);
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        clearInterval(timer);
+        reject(new Error('Timed out loading zxing-wasm.js'));
+      }
+    }, 50);
+  });
+}
+
+function isDecoderLoadError(error) {
+  const message = String(error && (error.message || error));
+  return /wasm|webassembly|instantiate|fetch|network|abort/i.test(message);
 }
 
 /** If the decoded text is one of cms-plugin-events' /checkin/... links, returns its path+query; otherwise null. */

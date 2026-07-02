@@ -141,7 +141,12 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('id="scanVideo"');
     // Scripts must point at the CMS-prefixed asset URL so the host allowlist keeps them.
     expect(html).toContain('/admin/plugins/checkin/assets/js/zxing-wasm.js');
+    expect(html).toContain('/admin/plugins/checkin/assets/wasm/zxing_reader.wasm');
     expect(html).toContain('/admin/plugins/checkin/assets/js/kiosk.js');
+
+    const kioskScript = await readFile(fileURLToPath(new URL('../views/assets/js/kiosk.js', import.meta.url).href), 'utf8');
+    expect(kioskScript).toContain('waitForZXingWASM');
+    expect(kioskScript).toContain('getZXingModule');
   });
 
   it('checks a guest in from the kiosk and redirects back to the guest, scoping the guest to the event', async () => {
