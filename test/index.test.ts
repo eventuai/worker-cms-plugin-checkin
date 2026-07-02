@@ -105,6 +105,7 @@ describe('plugin contract', () => {
         return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: {} } });
       }
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        expect(url.searchParams.get('q')).toBe('Ada');
         return Response.json({ pages: [{ id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { organization: 'Analytical Engines' } }], total: 1 });
       }
       if (url.pathname === '/__cms/pages/34' && init?.method === 'GET') {
@@ -216,6 +217,27 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(updates[0].lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
   });
 
+  it('renders the kiosk guest back link with the event name and no search link', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: {} } });
+      if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/guests/34', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+
+    expect(html).toContain('<div class="max-w-md">');
+    expect(html).toContain('&larr; Launch Party</a>');
+    expect(html).not.toContain('&larr; Scan</a>');
+    expect(html).not.toContain('>Search</a>');
+  });
+
   it('rejects a guest that belongs to another event', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
@@ -249,6 +271,7 @@ describe('kiosk (login-gated admin surface)', () => {
         return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } }], total: 1 });
       }
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        expect(url.searchParams.get('q')).toBe('vegan');
         return Response.json({ pages: [
           { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { rsvp_custom_meal_preference: 'Vegan' } },
           { id: 35, page_type: 'guest', name: 'Bob Halal', page_id: 12, lect: { rsvp_custom_meal_preference: 'Halal' } },

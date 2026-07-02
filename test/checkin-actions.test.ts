@@ -104,7 +104,7 @@ describe('checkinSessions', () => {
 });
 
 describe('CMS-backed actions', () => {
-  function stubCms(handlers: { get?: () => CmsPage; put?: (body: unknown) => void; list?: () => CmsPage[] }) {
+  function stubCms(handlers: { get?: () => CmsPage; put?: (body: unknown) => void; list?: (url: URL) => CmsPage[] }) {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
       if (init?.method === 'PUT' && handlers.put) {
@@ -113,7 +113,8 @@ describe('CMS-backed actions', () => {
         return Response.json({ page: { ...handlers.get?.(), lect: body.lect } });
       }
       if (url.pathname === '/__cms/pages' && handlers.list) {
-        return Response.json({ pages: handlers.list(), total: handlers.list().length });
+        const pages = handlers.list(url);
+        return Response.json({ pages, total: pages.length });
       }
       if (handlers.get) return Response.json({ page: handlers.get() });
       return new Response('not found', { status: 404 });
@@ -168,12 +169,19 @@ describe('CMS-backed actions', () => {
     expect(await findGuestByCode(cms, 12, 'nope')).toBeNull();
   });
 
-  it('searchGuests filters by name/email/organization/phone substring, case-insensitively', async () => {
+  it('searchGuests delegates text search to Worker CMS', async () => {
     const guests = [
       guest({ id: 1, name: 'Ada Lovelace', lect: { organization: 'Analytical Engines' } }),
-      guest({ id: 2, name: 'Grace Hopper', lect: { organization: 'US Navy' } }),
     ];
-    const cms = stubCms({ list: () => guests });
+    const cms = stubCms({
+      list: (url) => {
+        expect(url.searchParams.get('page_type')).toBe('guest');
+        expect(url.searchParams.get('pointer_key')).toBe('mail_list');
+        expect(url.searchParams.get('pointer_value')).toBe('12');
+        expect(url.searchParams.get('q')).toBe('analytical');
+        return guests;
+      },
+    });
     const results = await searchGuests(cms, 12, 'analytical');
     expect(results.map((g) => g.id)).toEqual([1]);
   });

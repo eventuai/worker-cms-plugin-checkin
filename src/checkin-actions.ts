@@ -141,18 +141,11 @@ export async function saveRfid(cms: CmsClient, guest: CmsPage, tag: string): Pro
   return cms.update(guest.id, { lect: { barcode: tag.trim() } });
 }
 
-/** Free-text search over one guest list's name/last_name/email/organization/phone. */
+/** Free-text search over one guest list, delegated to Worker CMS' `q` search. */
 export async function searchGuests(cms: CmsClient, listId: number, query: string): Promise<CmsPage[]> {
-  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, limit: 500 });
-  const needle = query.trim().toLowerCase();
-  if (!needle) return pages;
-  return pages.filter((guest) => searchableText(guest).includes(needle));
-}
-
-function searchableText(guest: CmsPage): string {
-  return [guest.name, attr(guest.lect, 'last_name'), attr(guest.lect, 'email'), attr(guest.lect, 'organization'), attr(guest.lect, 'phone')]
-    .join(' ')
-    .toLowerCase();
+  const q = query.trim();
+  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, q, limit: 500 });
+  return pages;
 }
 
 export interface WalkInInput {

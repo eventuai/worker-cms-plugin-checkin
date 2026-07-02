@@ -194,7 +194,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
 async function guestSearch(cms: CmsClient, views: Fetcher, listId: number, url: URL, jsonOnly: boolean): Promise<Response> {
   const list = await cms.get(listId);
   if (list.page_type !== 'mail_list') return notFoundView(views, 'Guest list not found.', jsonOnly);
-  const q = url.searchParams.get('q') ?? '';
+  const q = url.searchParams.get('q')?.trim() ?? '';
   const guests = q ? await searchGuests(cms, listId, q) : [];
 
   return adminView(views, `Search — ${list.name}`, 'guest-search', {
@@ -326,7 +326,7 @@ async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request
 }
 
 async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: URL, jsonOnly: boolean): Promise<Response> {
-  const q = url.searchParams.get('q') ?? '';
+  const q = url.searchParams.get('q')?.trim() ?? '';
   // `field` selects a custom-field search (match that field's value) instead of
   // the default name/email/organization/phone search.
   const fieldParam = url.searchParams.get('field')?.trim() ?? '';
@@ -365,8 +365,9 @@ async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: 
 
 /** Guests on a list whose custom-field value contains `q` (case-insensitive). */
 async function searchGuestsByCustomField(cms: CmsClient, listId: number, field: CustomField, q: string): Promise<CmsPage[]> {
-  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, limit: 500 });
-  const needle = q.trim().toLowerCase();
+  const query = q.trim();
+  const needle = query.toLowerCase();
+  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, q: query, limit: 500 });
   return pages.filter((guest) => {
     const value = guestCustomFieldValue(guest, field).toLowerCase();
     return value !== '' && value.includes(needle);
@@ -474,6 +475,7 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
 
   return kioskView(views, guest.name, 'kiosk-guest', {
     eventId: event.id,
+    eventName: event.name,
     guestId: guest.id,
     guestName: guest.name,
     organization: attr(guest.lect, 'organization'),
@@ -488,7 +490,6 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
     rfid: attr(guest.lect, 'barcode'),
     actionBase,
     backHref: `${KIOSK_BASE}/${event.id}/scan`,
-    searchHref: `${KIOSK_BASE}/${event.id}/search`,
     badgeHref: `${actionBase}/badge`,
     settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
   }, jsonOnly);
