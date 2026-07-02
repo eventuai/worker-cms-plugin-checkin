@@ -331,25 +331,26 @@ async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: 
   // the default name/email/organization/phone search.
   const fieldParam = url.searchParams.get('field')?.trim() ?? '';
   const lists = q ? await listByEvent(cms, 'mail_list', event.id) : [];
+  const listById = new Map(lists.map((list) => [list.id, list]));
   const customField = fieldParam
     ? eventCustomFields(event, lists).find((field) => field.key === fieldParam || field.legacyKey === fieldParam) ?? null
     : null;
+  const matches = q ? await searchGuestsInEvent(cms, listById, q) : [];
+  const filteredMatches = customField ? filterGuestsByCustomField(matches, customField, q) : matches;
 
   const guests: Array<{ id: number; name: string; organization: string; listName: string; checkedIn: boolean; guestHref: string }> = [];
-  for (const list of lists) {
-    const matches = customField
-      ? await searchGuestsByCustomField(cms, list.id, customField, q)
-      : await searchGuests(cms, list.id, q);
-    for (const guest of matches) {
-      guests.push({
-        id: guest.id,
-        name: guest.name,
-        organization: attr(guest.lect, 'organization'),
-        listName: list.name,
-        checkedIn: mainCheckinCount(guest) > 0,
-        guestHref: `${KIOSK_BASE}/${event.id}/guests/${guest.id}`,
-      });
-    }
+  for (const guest of filteredMatches) {
+    const listId = guestListId(guest);
+    const list = listId ? listById.get(listId) : null;
+    if (!list) continue;
+    guests.push({
+      id: guest.id,
+      name: guest.name,
+      organization: attr(guest.lect, 'organization'),
+      listName: list.name,
+      checkedIn: mainCheckinCount(guest) > 0,
+      guestHref: `${KIOSK_BASE}/${event.id}/guests/${guest.id}`,
+    });
   }
   return kioskView(views, `Search — ${event.name}`, 'kiosk-search', {
     eventName: event.name,
@@ -363,12 +364,26 @@ async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: 
   }, jsonOnly);
 }
 
-/** Guests on a list whose custom-field value contains `q` (case-insensitive). */
-async function searchGuestsByCustomField(cms: CmsClient, listId: number, field: CustomField, q: string): Promise<CmsPage[]> {
+async function searchGuestsInEvent(cms: CmsClient, listById: Map<number, CmsPage>, q: string): Promise<CmsPage[]> {
+  if (listById.size === 0) return [];
+  const query = q.trim();
+  if (!query) return [];
+  const { pages } = await cms.list('guest', { q: query, limit: 500 });
+  return pages.filter((guest) => {
+    const listId = guestListId(guest);
+    return listId !== null && listById.has(listId);
+  });
+}
+
+function guestListId(guest: CmsPage): number | null {
+  return pageId(guest.page_id) ?? pageId(pointer(guest.lect, 'mail_list'));
+}
+
+/** Guests whose custom-field value contains `q` (case-insensitive). */
+function filterGuestsByCustomField(guests: CmsPage[], field: CustomField, q: string): CmsPage[] {
   const query = q.trim();
   const needle = query.toLowerCase();
-  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: listId }, q: query, limit: 500 });
-  return pages.filter((guest) => {
+  return guests.filter((guest) => {
     const value = guestCustomFieldValue(guest, field).toLowerCase();
     return value !== '' && value.includes(needle);
   });
