@@ -1,0 +1,98 @@
+<div class="max-w-md mx-auto">
+  <div class="mb-4 flex items-center justify-between gap-4">
+    <a class="text-sm text-gray-500 hover:text-indigo-700" href="{{ backHref | escape }}">&larr; Scan</a>
+    <a class="text-sm text-indigo-600 hover:text-indigo-800 font-medium" href="{{ searchHref | escape }}">Search</a>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    <h1 class="text-2xl font-bold text-gray-900">{{ guestName | escape }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ organization | escape }}{% if email != blank %} &middot; {{ email | escape }}{% endif %}</p>
+
+    <div class="mt-4">
+      {% if mainCheckedIn %}
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Checked in</span>
+        {% if canCheckIn %}
+          <div class="flex gap-2 mt-2">
+            {% unless mainAtCap %}<form method="post" action="{{ actionBase | escape }}/checkin-main"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Check in again</button></form>{% endunless %}
+            <form method="post" action="{{ actionBase | escape }}/undo-main"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Undo</button></form>
+          </div>
+        {% endif %}
+      {% elsif canCheckIn %}
+        <form method="post" action="{{ actionBase | escape }}/checkin-main"><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Check In</button></form>
+      {% else %}
+        <span class="text-sm text-gray-400">Not checked in</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if hasPlusGuests %}
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    <h2 class="text-base font-bold text-gray-900 mb-2">Plus guests</h2>
+    <div class="divide-y divide-gray-100">
+      {% for plus in plusGuests %}
+        <div class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-gray-700">{{ plus.label | escape }}</span>
+          {% if canCheckIn %}
+            {% if plus.checkedIn %}
+              <form method="post" action="{{ actionBase | escape }}/undo-plus"><input type="hidden" name="index" value="{{ plus.index }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo</button></form>
+            {% else %}
+              <form method="post" action="{{ actionBase | escape }}/checkin-plus" class="flex gap-2">
+                <input type="hidden" name="index" value="{{ plus.index }}">
+                <input type="text" name="name" placeholder="Name (optional)" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in</button>
+              </form>
+            {% endif %}
+          {% elsif plus.checkedIn %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">In</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if hasSessions %}
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    <h2 class="text-base font-bold text-gray-900 mb-2">Sessions</h2>
+    <div class="divide-y divide-gray-100">
+      {% for session in sessions %}
+        <div class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm text-gray-700">{{ session.name | escape }}</span>
+          {% if canCheckIn %}
+            {% if session.checkedIn %}
+              <form method="post" action="{{ actionBase | escape }}/undo-session"><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo</button></form>
+            {% else %}
+              <form method="post" action="{{ actionBase | escape }}/checkin-session"><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in</button></form>
+            {% endif %}
+          {% elsif session.checkedIn %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">In</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if canCheckIn %}
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    <h2 class="text-base font-bold text-gray-900 mb-2">RFID tag</h2>
+    <p class="text-sm text-gray-500 mb-2">{% if rfid != blank %}Bound to: {{ rfid | escape }}{% else %}No tag bound yet.{% endif %}</p>
+    <form method="post" action="{{ actionBase | escape }}/save-rfid" class="flex gap-2">
+      <input type="text" name="tag" placeholder="Scan or type tag" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm">
+      <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Save</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
+    <h2 class="text-base font-bold text-gray-900 mb-2">Badge</h2>
+    <img src="{{ badgeHref | escape }}" alt="Badge preview" class="w-full rounded-lg border border-gray-200 mb-2">
+    <button type="button" id="printBadgeBtn" data-badge-href="{{ badgeHref | escape }}" data-width-mm="60" data-height-mm="30" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Print badge</button>
+    <p class="text-xs text-gray-400 mt-2">Uses the printer configured in <a href="{{ settingsHref | escape }}" class="text-indigo-600 hover:text-indigo-800">Settings</a>.</p>
+  </div>
+</div>
+
+<textarea id="bitmapOutput" class="hidden" aria-hidden="true"></textarea>
+<script src="/admin/plugins/checkin/assets/js/encoder.js"></script>
+<script src="/admin/plugins/checkin/assets/js/printer.js"></script>
+<script src="/admin/plugins/checkin/assets/js/kiosk.js"></script>

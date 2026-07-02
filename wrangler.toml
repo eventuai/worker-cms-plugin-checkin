@@ -17,19 +17,12 @@ binding = "CF_VERSION_METADATA"
 # create/update guest pages.
 CMS_URL = "https://cms.eventuai.com"
 
-# This Worker's own public origin — used to build absolute kiosk links in the
-# admin dashboard (those render on the CMS's own origin, so a relative
-# /kiosk/* path would otherwise resolve against cms.eventuai.com instead).
-# Must match the custom domain route configured above.
-PUBLIC_BASE_URL = "https://checkin.eventuai.com"
-
-# Deployment note: for cms-plugin-events' already-minted QR links to resolve,
-# this Worker must be reachable at /checkin/* and /kiosk/* on the SAME public
-# hostname as that plugin's PUBLIC_BASE_URL — configure Cloudflare routes
-# scoped to those paths on that zone, e.g.:
+# Deployment note: the door kiosk now lives on CMS-session-gated admin routes
+# (/admin/plugins/checkin/kiosk/* on the CMS origin), so this Worker no longer
+# needs its own kiosk hostname. It must still be reachable at /checkin/* on the
+# SAME public hostname as cms-plugin-events' PUBLIC_BASE_URL so that plugin's
+# already-minted guest QR links resolve — configure a Cloudflare route scoped to
+# that path on that zone, e.g.:
 #   [[routes]]
 #   pattern = "events.example.com/checkin/*"
-#   zone_name = "example.com"
-#   [[routes]]
-#   pattern = "events.example.com/kiosk/*"
 #   zone_name = "example.com"

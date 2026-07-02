@@ -115,3 +115,90 @@ describe('plugin contract', () => {
     expect(updates[0].body.lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
   });
 });
+
+describe('kiosk (login-gated admin surface)', () => {
+  function stubEvent() {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+  }
+
+  it('serves the scan page as camera-enabled chrome that loads the approved decoder scripts', async () => {
+    stubEvent();
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/scan', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-cms-chrome')).toBe('1');
+    // Opt-in flag the host translates into a relaxed (camera + wasm) CSP.
+    expect(response.headers.get('x-cms-permissions')).toBe('camera');
+    const html = await renderedText(response);
+    expect(html).toContain('id="scanVideo"');
+    // Scripts must point at the CMS-prefixed asset URL so the host allowlist keeps them.
+    expect(html).toContain('/admin/plugins/checkin/assets/js/zxing-wasm.js');
+    expect(html).toContain('/admin/plugins/checkin/assets/js/kiosk.js');
+  });
+
+  it('checks a guest in from the kiosk and redirects back to the guest, scoping the guest to the event', async () => {
+    const updates: Array<{ lect: { checkin: Array<{ status: string; message: string }> } }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      const method = init?.method ?? 'GET';
+      if (url.pathname === '/__cms/pages/7' && method === 'GET') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      }
+      if (url.pathname === '/__cms/pages/34' && method === 'GET') {
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: {} } });
+      }
+      // The guest's own list must belong to this event (pointer event -> 7).
+      if (url.pathname === '/__cms/pages/12' && method === 'GET') {
+        return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      }
+      if (url.pathname === '/__cms/pages/34' && method === 'PUT') {
+        const body = JSON.parse(String(init?.body));
+        updates.push(body);
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: body.lect } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/checkin-main', {
+      method: 'POST',
+      headers: { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' },
+      body: '',
+    }), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/admin/plugins/checkin/kiosk/7/guests/34');
+    expect(updates).toHaveLength(1);
+    expect(updates[0].lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
+  });
+
+  it('rejects a guest that belongs to another event', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada', page_id: 12, lect: {} } });
+      // list 12 points at a different event.
+      if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'Other', page_id: null, lect: { _pointers: { event: '99' } } } });
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/guests/34', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+    expect(html).toContain('Guest not found.');
+  });
+
+  it('no longer serves the kiosk on the public (non-admin) surface', async () => {
+    const response = await plugin.fetch(request('/kiosk/7'), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
+    expect(response.status).toBe(404);
+  });
+});

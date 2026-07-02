@@ -3,10 +3,26 @@
 // is the door-side surface that doesn't need one.
 
 import { adminView, notFoundView, redirect, type CmsPage } from '@lionrockjs/worker-cms-plugin';
-import { attr, checkins, CmsClient, computeGuestListSummary, listByEvent, PLUGIN_ID } from './cms';
-import { checkinSessions, mainCheckinCount, plusGuestsCap, recordCheckin, searchGuests, undoCheckin, formatMainMessage } from './checkin-actions';
-import { mintAdminLaunchToken } from './kiosk-session';
-import { type CheckinAccess } from './permissions';
+import { attr, checkins, CmsClient, computeGuestListSummary, isAdhocGuestList, listByEvent, pointer, PLUGIN_ID } from './cms';
+import {
+  checkinSessions,
+  createWalkInGuest,
+  findGuestByCode,
+  formatMainMessage,
+  formatPlusMessage,
+  formatSessionMessage,
+  mainCheckinCount,
+  maxMainCheckins,
+  plusCheckinCount,
+  plusGuestsCap,
+  recordCheckin,
+  saveRfid,
+  searchGuests,
+  sessionCheckinCount,
+  undoCheckin,
+} from './checkin-actions';
+import { eventLabels, guestTokens, labelFrame, renderLabel } from './labels';
+import { forbidden, type CheckinAccess } from './permissions';
 
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
 
@@ -18,8 +34,6 @@ export async function handleCheckinAdmin(
   url: URL,
   jsonOnly: boolean,
   access: CheckinAccess,
-  publicBase: string,
-  pluginSecret: string,
 ): Promise<Response> {
   const section = segments[0] || 'dashboard';
 
@@ -28,7 +42,11 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
-    return eventDashboard(cms, views, eventId, jsonOnly, publicBase, pluginSecret);
+    return eventDashboard(cms, views, eventId, jsonOnly);
+  }
+
+  if (section === 'kiosk') {
+    return handleKioskAdmin(cms, views, segments.slice(1), url, request, jsonOnly, access);
   }
 
   if (section === 'rsvp') {
@@ -65,7 +83,7 @@ async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Pro
   }, jsonOnly);
 }
 
-async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean, publicBase: string, pluginSecret: string): Promise<Response> {
+async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, jsonOnly: boolean): Promise<Response> {
   const event = await cms.get(eventId);
   if (event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
@@ -89,20 +107,13 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     .slice(0, 20);
 
   // The kiosk is scoped to the whole event (scan/search cross every guest
-  // list on it — see public.ts), not to one list, so there's a single kiosk
-  // link per event rather than one per list.
-  const base = publicBase.replace(/\/+$/, '');
-  const launchToken = await mintAdminLaunchToken(pluginSecret, event.id);
-
+  // list on it — see handleKioskAdmin), not to one list, so there's a single
+  // kiosk link per event rather than one per list. It's a same-origin admin
+  // route now (login-gated), so a plain relative path.
   return adminView(views, `Check-in — ${event.name}`, 'event-dashboard', {
     eventName: event.name,
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
-    // Absolute: this admin page renders on the CMS's own origin, but /kiosk/*
-    // only exists on this plugin's own public Worker.
-    kioskHref: `${base}/kiosk/${event.id}`,
-    // Bypasses passcode — valid for 5 min from page render.
-    launchKioskHref: `${base}/kiosk/${event.id}/launch?token=${encodeURIComponent(launchToken)}`,
-    hasPasscode: attr(event.lect, 'checkin_lite_passcode').trim() !== '',
+    launchKioskHref: `${ADMIN_BASE}/kiosk/${event.id}/scan`,
     sessions: checkinSessions(event),
     lists: listSummaries.map(({ list, summary }) => ({
       id: list.id,
@@ -170,6 +181,251 @@ async function requireGuestInList(cms: CmsClient, listId: number, guestId: numbe
   const guest = await cms.get(guestId);
   if (guest.page_type !== 'guest' || guest.page_id !== listId) return null;
   return guest;
+}
+
+// ── Kiosk (login-gated door-staff surface) ──────────────────────────────────
+// Formerly the passcode-lite public kiosk on the plugin's own domain; now a
+// CMS-session admin surface wrapped in the host chrome. The kiosk is scoped to
+// a whole event — scan/search cross every guest list on it. The scan page opts
+// into the camera (x-cms-permissions) so the host relaxes the admin CSP for it.
+
+const KIOSK_BASE = ADMIN_BASE + '/kiosk';
+
+async function handleKioskAdmin(
+  cms: CmsClient,
+  views: Fetcher,
+  segments: string[],
+  url: URL,
+  request: Request,
+  jsonOnly: boolean,
+  access: CheckinAccess,
+): Promise<Response> {
+  const eventId = pageId(segments[0]);
+  if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
+
+  const event = await cms.get(eventId).catch(() => null);
+  if (!event || event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
+
+  const sub = segments[1];
+  if (!sub || sub === 'scan') return kioskScan(cms, views, event, request, jsonOnly, access);
+  if (sub === 'search') return kioskSearch(cms, views, event, url, jsonOnly);
+  if (sub === 'settings') return kioskView(views, `Settings — ${event.name}`, 'kiosk-settings', {
+    eventName: event.name,
+    backHref: `${KIOSK_BASE}/${event.id}/scan`,
+    searchHref: `${KIOSK_BASE}/${event.id}/search`,
+  }, jsonOnly);
+  if (sub === 'adhoc-guest') {
+    if (!access.canCheckIn) return forbidden();
+    return kioskAdhocGuest(cms, views, event, request, jsonOnly);
+  }
+  if (sub === 'guests') return kioskGuest(cms, views, event, segments.slice(2), request, jsonOnly, access);
+
+  return notFoundView(views, 'Page not found.', jsonOnly);
+}
+
+/**
+ * A kiosk client-view, optionally flagged as needing the camera. adminView
+ * returns a mutable JSON client-view Response; the `camera` flag adds the
+ * opt-in header the host translates into a relaxed (camera + wasm) CSP for
+ * just this page. No effect on the `jsonOnly` (raw data) response.
+ */
+async function kioskView(
+  views: Fetcher,
+  title: string,
+  template: string,
+  data: Record<string, unknown>,
+  jsonOnly: boolean,
+  opts: { camera?: boolean } = {},
+): Promise<Response> {
+  const response = await adminView(views, title, template, data, jsonOnly);
+  if (opts.camera && !jsonOnly) response.headers.set('x-cms-permissions', 'camera');
+  return response;
+}
+
+async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request: Request, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+  const data = {
+    eventName: event.name,
+    eventId: event.id,
+    searchHref: `${KIOSK_BASE}/${event.id}/search`,
+    settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
+    scanAction: `${KIOSK_BASE}/${event.id}/scan`,
+    adhocHref: `${KIOSK_BASE}/${event.id}/adhoc-guest`,
+    canCheckIn: access.canCheckIn,
+    error: '',
+  };
+  if (request.method === 'POST') {
+    const form = await request.formData();
+    const code = String(form.get('code') ?? '').trim();
+    const guest = code ? await findGuestByCodeInEvent(cms, event.id, code) : null;
+    if (guest) return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
+    return kioskView(views, `Scan — ${event.name}`, 'kiosk-scan', { ...data, error: 'No guest found for that code.' }, jsonOnly, { camera: true });
+  }
+  return kioskView(views, `Scan — ${event.name}`, 'kiosk-scan', data, jsonOnly, { camera: true });
+}
+
+async function kioskSearch(cms: CmsClient, views: Fetcher, event: CmsPage, url: URL, jsonOnly: boolean): Promise<Response> {
+  const q = url.searchParams.get('q') ?? '';
+  const lists = q ? await listByEvent(cms, 'mail_list', event.id) : [];
+  const guests: Array<{ id: number; name: string; organization: string; listName: string; checkedIn: boolean; guestHref: string }> = [];
+  for (const list of lists) {
+    for (const guest of await searchGuests(cms, list.id, q)) {
+      guests.push({
+        id: guest.id,
+        name: guest.name,
+        organization: attr(guest.lect, 'organization'),
+        listName: list.name,
+        checkedIn: mainCheckinCount(guest) > 0,
+        guestHref: `${KIOSK_BASE}/${event.id}/guests/${guest.id}`,
+      });
+    }
+  }
+  return kioskView(views, `Search — ${event.name}`, 'kiosk-search', {
+    eventName: event.name,
+    eventId: event.id,
+    query: q,
+    guests,
+    scanHref: `${KIOSK_BASE}/${event.id}/scan`,
+    settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
+  }, jsonOnly);
+}
+
+async function kioskAdhocGuest(cms: CmsClient, views: Fetcher, event: CmsPage, request: Request, jsonOnly: boolean): Promise<Response> {
+  if (request.method !== 'POST') return new Response('not found', { status: 404 });
+  const form = await request.formData();
+  const name = String(form.get('name') ?? '').trim();
+  if (!name) return redirect(`${KIOSK_BASE}/${event.id}/scan`);
+
+  const lists = await listByEvent(cms, 'mail_list', event.id);
+  const target = lists.find(isAdhocGuestList);
+  if (!target) return adminView(views, 'Check-in', 'error', { message: 'No default guest list configured for this event yet. Add one in the CMS admin first.' }, jsonOnly);
+
+  const guest = await createWalkInGuest(cms, target.id, {
+    name,
+    email: String(form.get('email') ?? '').trim(),
+    phone: String(form.get('phone') ?? '').trim(),
+    organization: String(form.get('organization') ?? '').trim(),
+    plusGuests: Number.parseInt(String(form.get('plus_guests') ?? '0'), 10) || 0,
+  });
+  if (form.get('checkin') === '1') await recordCheckin(cms, guest, formatMainMessage('kiosk'));
+
+  return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
+}
+
+async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: string[], request: Request, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+  const guestId = pageId(rest[0]);
+  if (!guestId) return notFoundView(views, 'Guest not found.', jsonOnly);
+
+  let guest = await cms.get(guestId).catch(() => null);
+  if (!guest || guest.page_type !== 'guest') return notFoundView(views, 'Guest not found.', jsonOnly);
+
+  // Guest's own mail_list must belong to this event — keeps one event's kiosk
+  // from reaching into another event's guests via a guessed guest id.
+  const list = guest.page_id ? await cms.get(guest.page_id).catch(() => null) : null;
+  if (!list || list.page_type !== 'mail_list' || pointer(list.lect, 'event') !== String(event.id)) {
+    return notFoundView(views, 'Guest not found.', jsonOnly);
+  }
+
+  const action = rest[1];
+
+  if (action === 'badge') return renderBadge(cms, event, guest);
+
+  if (action && request.method === 'POST') {
+    if (!access.canCheckIn) return forbidden();
+    guest = await performGuestAction(cms, guest, event, action, request);
+    return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
+  }
+
+  return renderKioskGuest(views, event, guest, jsonOnly, access);
+}
+
+async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage, action: string, request: Request): Promise<CmsPage> {
+  const form = await request.formData().catch(() => null);
+
+  if (action === 'checkin-main') {
+    if (mainCheckinCount(guest) < maxMainCheckins(guest)) return recordCheckin(cms, guest, formatMainMessage('kiosk'));
+    return guest;
+  }
+  if (action === 'undo-main') {
+    return (await undoCheckin(cms, guest, (parsed) => parsed.kind === 'main')).guest;
+  }
+  if (action === 'checkin-plus') {
+    const index = Number.parseInt(String(form?.get('index') ?? ''), 10);
+    const name = String(form?.get('name') ?? '').trim() || undefined;
+    if (Number.isInteger(index) && index >= 0 && index < plusGuestsCap(guest) && plusCheckinCount(guest, index) === 0) {
+      return recordCheckin(cms, guest, formatPlusMessage(index, 'kiosk', name));
+    }
+    return guest;
+  }
+  if (action === 'undo-plus') {
+    const index = Number.parseInt(String(form?.get('index') ?? ''), 10);
+    return (await undoCheckin(cms, guest, (parsed) => parsed.kind === 'plus' && parsed.index === index)).guest;
+  }
+  if (action === 'checkin-session') {
+    const sessionId = String(form?.get('session_id') ?? '');
+    const session = checkinSessions(event).find((candidate) => candidate.id === sessionId);
+    if (session && sessionCheckinCount(guest, sessionId) === 0) return recordCheckin(cms, guest, formatSessionMessage(session.id, session.name));
+    return guest;
+  }
+  if (action === 'undo-session') {
+    const sessionId = String(form?.get('session_id') ?? '');
+    return (await undoCheckin(cms, guest, (parsed) => parsed.kind === 'session' && parsed.sessionId === sessionId)).guest;
+  }
+  if (action === 'save-rfid') {
+    const tag = String(form?.get('tag') ?? '').trim();
+    if (tag) return saveRfid(cms, guest, tag);
+    return guest;
+  }
+  return guest;
+}
+
+async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+  const cap = plusGuestsCap(guest);
+  const plusGuests = Array.from({ length: cap }, (_, index) => ({
+    index,
+    label: `Plus guest ${index + 1}`,
+    checkedIn: plusCheckinCount(guest, index) > 0,
+  }));
+  const sessions = checkinSessions(event).map((session) => ({ ...session, checkedIn: sessionCheckinCount(guest, session.id) > 0 }));
+  const actionBase = `${KIOSK_BASE}/${event.id}/guests/${guest.id}`;
+
+  return kioskView(views, guest.name, 'kiosk-guest', {
+    eventId: event.id,
+    guestId: guest.id,
+    guestName: guest.name,
+    organization: attr(guest.lect, 'organization'),
+    email: attr(guest.lect, 'email'),
+    canCheckIn: access.canCheckIn,
+    mainCheckedIn: mainCheckinCount(guest) > 0,
+    mainAtCap: mainCheckinCount(guest) >= maxMainCheckins(guest),
+    plusGuests,
+    hasPlusGuests: plusGuests.length > 0,
+    sessions,
+    hasSessions: sessions.length > 0,
+    rfid: attr(guest.lect, 'barcode'),
+    actionBase,
+    backHref: `${KIOSK_BASE}/${event.id}/scan`,
+    searchHref: `${KIOSK_BASE}/${event.id}/search`,
+    badgeHref: `${actionBase}/badge`,
+    settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
+  }, jsonOnly);
+}
+
+async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Promise<Response> {
+  const labels = await eventLabels(cms, event.id);
+  if (!labels.length) return new Response('No badge template configured for this event yet.', { status: 404 });
+  const frame = labelFrame(labels[0]);
+  const svg = renderLabel(frame.svg, guestTokens(guest));
+  return new Response(svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'no-store' } });
+}
+
+/** Scans every guest list on the event, in order, for a guest whose qrcode/barcode matches. */
+async function findGuestByCodeInEvent(cms: CmsClient, eventId: number, code: string): Promise<CmsPage | null> {
+  const lists = await listByEvent(cms, 'mail_list', eventId);
+  for (const list of lists) {
+    const guest = await findGuestByCode(cms, list.id, code);
+    if (guest) return guest;
+  }
+  return null;
 }
 
 function pageId(value: unknown): number | null {

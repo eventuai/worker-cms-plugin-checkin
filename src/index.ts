@@ -5,8 +5,9 @@
 // main-attendee/plus-guest/session check-in, walk-in registration and badge
 // printing. Reads/writes the event/mail_list/guest/label pages
 // cms-plugin-events' blueprint already defines — this plugin adds no content
-// types of its own, only admin routes (CMS-session-gated) and public routes
-// (direct QR links + a passcode-lite kiosk) on its own domain.
+// types of its own. All staff-facing check-in (dashboard + the door kiosk)
+// lives on CMS-session-gated admin routes; the only public route is the
+// guest-facing direct QR check-in link (/checkin/*) on its own domain.
 // ============================================================
 
 import { adminView, redirect, requirePluginSecret, serveViewAsset } from '@lionrockjs/worker-cms-plugin';
@@ -21,8 +22,6 @@ import MANIFEST from './manifest.json';
 interface PluginEnv extends PublicEnv {
   PLUGIN_SECRET?: string;
   CMS_URL?: string;
-  /** This Worker's own public origin (e.g. https://checkin.eventuai.com) — used to build absolute kiosk links in the admin dashboard, since those render on the CMS's origin. */
-  PUBLIC_BASE_URL?: string;
 }
 
 export default {
@@ -48,9 +47,10 @@ export default {
       return handleAdmin(request, env, url);
     }
 
-    // Static assets for the public kiosk pages (camera scanning + badge
-    // printing scripts) — these pages aren't wrapped in the host admin
-    // chrome, so they fetch scripts directly from this Worker's own domain.
+    // Static assets (kiosk camera scanner + badge printing scripts, decoder
+    // wasm). The host proxies these through its admin plugin-asset allowlist
+    // (admin-approved + hash-pinned) by fetching ${PLUGIN_ORIGIN}/assets/*
+    // here, so the kiosk chrome can load them under the strict admin CSP.
     if (path.startsWith('/assets/')) {
       return serveViewAsset(env.VIEWS, path);
     }
@@ -104,7 +104,7 @@ async function handleAdmin(request: Request, env: PluginEnv, url: URL): Promise<
   // is caught here and rendered as an error panel rather than escaping as an
   // unhandled 500 with a stack trace.
   try {
-    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access, env.PUBLIC_BASE_URL ?? '', env.PLUGIN_SECRET ?? '');
+    return await handleCheckinAdmin(request, cms, env.VIEWS, segments, url, jsonOnly, access);
   } catch (error) {
     if (error instanceof CmsApiError) return adminView(env.VIEWS, 'Error', 'error', { message: error.message }, jsonOnly);
     throw error;

@@ -3,11 +3,29 @@
 // and badge printing (encoder.js SVG->bitmap + printer.js WebUSB/printer-server
 // transport, also ported as-is).
 
-document.addEventListener('DOMContentLoaded', () => {
+function initKiosk() {
+  // Point the decoder at the CMS-served, admin-approved wasm binary (same
+  // origin, so connect-src 'self' allows it) instead of zxing's jsdelivr
+  // default, which the admin CSP blocks. See views/assets/wasm.
+  if (typeof ZXingWASM !== 'undefined' && ZXingWASM.setZXingModuleOverrides) {
+    ZXingWASM.setZXingModuleOverrides({
+      locateFile: (path, prefix) =>
+        path.endsWith('.wasm') ? '/admin/plugins/checkin/assets/wasm/zxing_reader.wasm' : prefix + path,
+    });
+  }
   initScanner();
   initBadgePrint();
   initAdhocToggle();
-});
+}
+
+// The CMS admin shell renders client-side and injects this script *after*
+// DOMContentLoaded has already fired, so a DOMContentLoaded listener would
+// never run. Init immediately when the DOM is ready; only wait when it isn't.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initKiosk);
+} else {
+  initKiosk();
+}
 
 function initAdhocToggle() {
   const link = document.getElementById('showAdhocForm');

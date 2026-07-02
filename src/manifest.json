@@ -11,6 +11,7 @@
   ],
   "assets": [
     { "path": "/assets/js/zxing-wasm.js", "label": "Barcode/QR decoder (WASM)" },
+    { "path": "/assets/wasm/zxing_reader.wasm", "label": "Barcode/QR decoder binary" },
     { "path": "/assets/js/kiosk.js", "label": "Kiosk camera scanner" },
     { "path": "/assets/js/encoder.js", "label": "Badge encoder" },
     { "path": "/assets/js/printer.js", "label": "Badge printer" }
