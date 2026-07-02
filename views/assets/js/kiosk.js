@@ -3,6 +3,18 @@
 // and badge printing (encoder.js SVG->bitmap + printer.js WebUSB/printer-server
 // transport, also ported as-is).
 
+// Carry this script's own `?r=<deploy revision>` onto the wasm URL so the wasm
+// is cached immutably and busts on deploy too. Captured synchronously at load
+// (document.currentScript is only valid during initial execution).
+var KIOSK_ASSET_QUERY = (function () {
+  try {
+    const src = document.currentScript && document.currentScript.src;
+    return src ? new URL(src).search : '';
+  } catch (error) {
+    return '';
+  }
+})();
+
 function initKiosk() {
   // Point the decoder at the CMS-served, admin-approved wasm binary (same
   // origin, so connect-src 'self' allows it) instead of zxing's jsdelivr
@@ -10,7 +22,7 @@ function initKiosk() {
   if (typeof ZXingWASM !== 'undefined' && ZXingWASM.setZXingModuleOverrides) {
     ZXingWASM.setZXingModuleOverrides({
       locateFile: (path, prefix) =>
-        path.endsWith('.wasm') ? '/admin/plugins/checkin/assets/wasm/zxing_reader.wasm' : prefix + path,
+        path.endsWith('.wasm') ? '/admin/plugins/checkin/assets/wasm/zxing_reader.wasm' + KIOSK_ASSET_QUERY : prefix + path,
     });
   }
   initScanner();
