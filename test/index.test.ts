@@ -182,6 +182,18 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(kioskScript).toContain('writeBooleanSetting(KIOSK_MIRROR_STORAGE_KEY, mirrored)');
   });
 
+  it('renders the kiosk settings page with the same left-aligned wrapper', async () => {
+    stubEvent();
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/settings', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+
+    expect(html).toContain('<div class="max-w-md">');
+    expect(html).toContain('Printer mode');
+  });
+
   it('checks a guest in from the kiosk and redirects back to the guest, scoping the guest to the event', async () => {
     const updates: Array<{ lect: { checkin: Array<{ status: string; message: string }> } }> = [];
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -285,6 +297,7 @@ describe('kiosk (login-gated admin surface)', () => {
       env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
     );
     const html = await renderedText(response);
+    expect(html).toContain('<div class="max-w-md">');
     expect(html).toContain('Searching by Meal preference');
     expect(html).toContain('Ada Lovelace');
     expect(html).not.toContain('Bob Halal');
