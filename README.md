@@ -16,7 +16,7 @@ Event check-in plugin for [Worker CMS](https://github.com/eventuai) — QR/barco
 
 ## Architecture notes
 
-- No blueprint/schema changes to `cms-plugin-events` — this plugin only reads/writes its `event`/`mail_list`/`guest`/`label` pages through its own CMS F1 client (plugin id `checkin`).
+- No blueprint/schema changes to `cms-plugin-events` — this plugin only reads/writes its `event`/`mail_list`/`guest`/`label` pages through its own CMS Plugin API client (plugin id `checkin`).
 - `guest.checkin[]` only stores `status`/`date`/`message`; which attendee/plus-guest-index/session a check-in belongs to is encoded into `message` via a parseable convention (`src/checkin-actions.ts`), so no schema change was needed to support multi-session and multi-plus-guest tracking.
 - RFID tags reuse the existing `barcode` guest attribute — there's no dedicated RFID field.
 - Verifying `cms-plugin-events`' already-minted guest QR signatures requires a **copy** of that plugin's `PLUGIN_SECRET` in this plugin's `EVENTS_PLUGIN_SECRET` env var (see `wrangler.toml`) — the two plugins don't share a binding.
@@ -25,7 +25,7 @@ Event check-in plugin for [Worker CMS](https://github.com/eventuai) — QR/barco
 ## Configuration
 
 ```
-wrangler secret put PLUGIN_SECRET         # this plugin's own CMS F1 credential
+wrangler secret put PLUGIN_SECRET         # this plugin's own CMS Plugin API credential
 wrangler secret put EVENTS_PLUGIN_SECRET  # copy of cms-plugin-events' PLUGIN_SECRET
 ```
 

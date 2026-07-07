@@ -12,8 +12,8 @@ run_worker_first = true
 binding = "CF_VERSION_METADATA"
 
 [vars]
-# Base URL of the CMS Worker — where this plugin reaches the F1 page
-# read/write API ({CMS_URL}/__cms/*) to read events/lists/guests/labels and
+# Base URL of the CMS Worker — where this plugin reaches the Plugin API
+# ({CMS_URL}/__cms/*, page read/write) to read events/lists/guests/labels and
 # create/update guest pages.
 CMS_URL = "https://cms.eventuai.com"
 

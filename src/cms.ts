@@ -1,7 +1,7 @@
 // ============================================================
 // Check-in plugin's CMS bridge.
 //
-// Shared F1 client/types and neutral lect readers live in
+// Shared Plugin API client/types and neutral lect readers live in
 // @lionrockjs/worker-cms-plugin. This file adds only the check-in-specific
 // helpers that read data shaped by cms-plugin-events' blueprint (event,
 // mail_list, guest, label) without depending on that plugin's source.
