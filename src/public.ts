@@ -8,7 +8,7 @@
 // login-gated CMS admin surface (see admin.ts handleKioskAdmin); only the
 // guest-facing QR links remain public.
 
-import { attr, type CmsPage } from '@lionrockjs/worker-cms-plugin';
+import { attr, soleTenant, tenantByRef, tenantClientEnv, type CmsPage } from '@lionrockjs/worker-cms-plugin';
 import { CmsClient, type CmsClientEnv } from './cms';
 import { resolveCheckinLink } from './qr-links';
 import {
@@ -23,16 +23,29 @@ import {
 import { renderLiquid } from './templates/liquid';
 
 export interface PublicEnv extends CmsClientEnv {
-  /** Copy of cms-plugin-events' PLUGIN_SECRET — verifies its already-minted guest QR links. See wrangler.toml. */
+  /** Copy of cms-plugin-events' signKey (legacy: its PLUGIN_SECRET) — verifies
+   *  its already-minted guest QR links. Multi-tenant installs set it per
+   *  tenant via the TENANTS record's `vars.EVENTS_PLUGIN_SECRET` instead. */
   EVENTS_PLUGIN_SECRET?: string;
+  /** Multi-tenant registry: `tenant:<cms origin>` → TenantConfig JSON. */
+  TENANTS?: KVNamespace;
   VIEWS: Fetcher;
 }
 
 /** Returns null (not handled) so the caller can fall through to its own 404. */
 export async function handlePublicCheckin(request: Request, env: PublicEnv, url: URL): Promise<Response | null> {
   const segments = url.pathname.split('/').filter(Boolean);
-  if (segments[0] === 'checkin') return handleDirectCheckin(request, env, segments.slice(1));
-  return null;
+  if (segments[0] !== 'checkin') return null;
+
+  // Multi-tenant: QR links minted by cms-plugin-events carry `?t=<ref>`; the
+  // ref picks the tenant whose keys verify the link and whose CMS the
+  // check-in writes to. Links without a ref (already-printed badges) resolve
+  // while exactly one tenant is configured. The ref is only a routing hint —
+  // a swapped ref makes the signature check fail under the other tenant's key.
+  const ref = url.searchParams.get('t') ?? '';
+  const tenant = ref ? await tenantByRef(env, ref) : await soleTenant(env);
+  if (!tenant) return new Response('not found', { status: 404 });
+  return handleDirectCheckin(request, tenantClientEnv(env, tenant), segments.slice(1));
 }
 
 // ── Direct QR check-in ─────────────────────────────────────────────────────

@@ -10,7 +10,7 @@
 // guest-facing direct QR check-in link (/checkin/*) on its own domain.
 // ============================================================
 
-import { adminView, redirect, requirePluginSecret, serveViewAsset } from '@lionrockjs/worker-cms-plugin';
+import { adminView, redirect, requireTenant, serveViewAsset, tenantClientEnv } from '@lionrockjs/worker-cms-plugin';
 import { CmsApiError, CmsClient, CmsNotConfiguredError } from './cms';
 import { handleCheckinAdmin } from './admin';
 import { handlePublicCheckin, type PublicEnv } from './public';
@@ -25,13 +25,18 @@ interface PluginEnv extends PublicEnv {
 }
 
 export default {
-  async fetch(request: Request, env: PluginEnv): Promise<Response> {
+  async fetch(request: Request, baseEnv: PluginEnv): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Host admin calls resolve their tenant (x-cms-tenant + x-plugin-secret
+    // verified against the same registry row); handlers below then run with a
+    // tenant-scoped env, so every CmsClient is bound to the calling CMS only.
+    let env = baseEnv;
     if (path.startsWith('/__plugin/admin')) {
-      const forbiddenResponse = requirePluginSecret(request, env.PLUGIN_SECRET);
-      if (forbiddenResponse) return forbiddenResponse;
+      const tenant = await requireTenant(request, baseEnv);
+      if (tenant instanceof Response) return tenant;
+      env = tenantClientEnv(baseEnv, tenant);
     }
 
     if (path === '/__plugin/manifest') {
