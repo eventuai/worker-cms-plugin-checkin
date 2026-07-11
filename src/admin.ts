@@ -24,6 +24,7 @@ import {
 import { eventLabels, guestTokens, labelFrame, renderLabel } from './labels';
 import { eventCustomFields, guestCustomFieldValue, type CustomField } from './custom-fields';
 import { forbidden, type CheckinAccess } from './permissions';
+import { resolveCheckinCode } from './qr-links';
 
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
 
@@ -35,6 +36,7 @@ export async function handleCheckinAdmin(
   url: URL,
   jsonOnly: boolean,
   access: CheckinAccess,
+  eventsPluginSecret?: string,
 ): Promise<Response> {
   const section = segments[0] || 'dashboard';
 
@@ -47,7 +49,7 @@ export async function handleCheckinAdmin(
   }
 
   if (section === 'kiosk') {
-    return handleKioskAdmin(cms, views, segments.slice(1), url, request, jsonOnly, access);
+    return handleKioskAdmin(cms, views, segments.slice(1), url, request, jsonOnly, access, eventsPluginSecret);
   }
 
   if (section === 'rsvp') {
@@ -261,6 +263,7 @@ async function handleKioskAdmin(
   request: Request,
   jsonOnly: boolean,
   access: CheckinAccess,
+  eventsPluginSecret?: string,
 ): Promise<Response> {
   const eventId = pageId(segments[0]);
   if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
@@ -269,7 +272,7 @@ async function handleKioskAdmin(
   if (!event || event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
   const sub = segments[1];
-  if (!sub || sub === 'scan') return kioskScan(cms, views, event, request, jsonOnly, access);
+  if (!sub || sub === 'scan') return kioskScan(cms, views, event, request, jsonOnly, access, eventsPluginSecret);
   if (sub === 'search') return kioskSearch(cms, views, event, url, jsonOnly);
   if (sub === 'settings') return kioskView(views, `Settings — ${event.name}`, 'kiosk-settings', {
     eventName: event.name,
@@ -304,7 +307,15 @@ async function kioskView(
   return response;
 }
 
-async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request: Request, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+async function kioskScan(
+  cms: CmsClient,
+  views: Fetcher,
+  event: CmsPage,
+  request: Request,
+  jsonOnly: boolean,
+  access: CheckinAccess,
+  eventsPluginSecret?: string,
+): Promise<Response> {
   const data = {
     eventName: event.name,
     eventId: event.id,
@@ -318,7 +329,7 @@ async function kioskScan(cms: CmsClient, views: Fetcher, event: CmsPage, request
   if (request.method === 'POST') {
     const form = await request.formData();
     const code = String(form.get('code') ?? '').trim();
-    const guest = code ? await findGuestByCodeInEvent(cms, event.id, code) : null;
+    const guest = code ? await findGuestByCodeInEvent(cms, event.id, code, eventsPluginSecret) : null;
     if (guest) return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
     return kioskView(views, event.name, 'kiosk-scan', { ...data, error: 'No guest found for that code.' }, jsonOnly, { camera: true });
   }
@@ -520,8 +531,23 @@ async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Prom
 }
 
 /** Scans every guest list on the event, in order, for a guest whose qrcode/barcode matches. */
-async function findGuestByCodeInEvent(cms: CmsClient, eventId: number, code: string): Promise<CmsPage | null> {
+async function findGuestByCodeInEvent(
+  cms: CmsClient,
+  eventId: number,
+  code: string,
+  eventsPluginSecret?: string,
+): Promise<CmsPage | null> {
   const lists = await listByEvent(cms, 'mail_list', eventId);
+  const signed = await resolveCheckinCode(code, eventsPluginSecret);
+  if (signed) {
+    const list = lists.find((candidate) => candidate.id === signed.listId);
+    if (!list) return null; // A valid code for another event must not escape this kiosk.
+    const guest = await cms.get(signed.guestId).catch(() => null);
+    if (guest?.page_type === 'guest' && guest.page_id === list.id) return guest;
+    return null;
+  }
+
+  // Legacy RFID/barcode and manually-paired QR values remain list-scoped.
   for (const list of lists) {
     const guest = await findGuestByCode(cms, list.id, code);
     if (guest) return guest;

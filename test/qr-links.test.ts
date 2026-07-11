@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { signPayload } from '../src/crypto';
-import { resolveCheckinLink } from '../src/qr-links';
+import { resolveCheckinCode, resolveCheckinLink } from '../src/qr-links';
 
 const SECRET = 'events-plugin-secret';
 
@@ -35,5 +35,12 @@ describe('resolveCheckinLink', () => {
   it('rejects when no secret is configured', async () => {
     const sig = await signPayload(SECRET, '12.34');
     expect(await resolveCheckinLink(['12', '34', sig], undefined)).toBeNull();
+  });
+
+  it('resolves raw QR tokens and absolute QR links from a scanner', async () => {
+    const sig = await signPayload(SECRET, '12.34');
+    expect(await resolveCheckinCode(`12.34.${sig}`, SECRET)).toEqual({ kind: 'main', listId: 12, guestId: 34 });
+    expect(await resolveCheckinCode(`https://checkin.example/checkin/12/34/${sig}?t=tenant-a`, SECRET))
+      .toEqual({ kind: 'main', listId: 12, guestId: 34 });
   });
 });

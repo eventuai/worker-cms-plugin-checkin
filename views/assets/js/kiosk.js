@@ -270,9 +270,13 @@ async function initScanner() {
 
   function onDecoded(text) {
     if (statusEl) statusEl.textContent = 'Code detected!';
-    const checkinPath = checkinLinkPath(text);
-    if (checkinPath) {
-      window.location.href = checkinPath;
+    const checkinCode = checkinLinkCode(text);
+    if (checkinCode) {
+      // Keep the camera flow inside the staff kiosk. The server verifies the
+      // signed Events QR and opens the matching guest; navigating an absolute
+      // /checkin URL here would incorrectly send the browser to the CMS host.
+      if (codeInput) codeInput.value = checkinCode;
+      if (codeForm) codeForm.submit();
       return;
     }
     if (codeInput) codeInput.value = text;
@@ -316,11 +320,11 @@ function isDecoderLoadError(error) {
   return /wasm|webassembly|instantiate|fetch|network|abort/i.test(message);
 }
 
-/** If the decoded text is one of cms-plugin-events' /checkin/... links, returns its path+query; otherwise null. */
-function checkinLinkPath(text) {
+/** Returns a complete Events /checkin URL for server-side QR verification, otherwise null. */
+function checkinLinkCode(text) {
   try {
     const url = new URL(text, window.location.origin);
-    return url.pathname.startsWith('/checkin/') ? url.pathname + url.search : null;
+    return url.pathname.startsWith('/checkin/') ? url.href : null;
   } catch {
     return null;
   }

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 import { renderView } from '../src/templates/liquid';
+import { signPayload } from '../src/crypto';
 
 interface PluginEnv {
   CMS_URL?: string;
@@ -230,6 +231,30 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(response.headers.get('location')).toBe('/admin/plugins/checkin/kiosk/7/guests/34');
     expect(updates).toHaveLength(1);
     expect(updates[0].lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
+  });
+
+  it('opens the correct guest when the kiosk scans a signed Events QR token', async () => {
+    const code = `12.34.${await signPayload('events-secret', '12.34')}`;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', lect: { _pointers: { event: '7' } } }], total: 1 });
+      }
+      if (url.pathname === '/__cms/pages/34') {
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: {} } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(request('/__plugin/admin/kiosk/7/scan', {
+      method: 'POST',
+      headers: { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code }),
+    }), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret', EVENTS_PLUGIN_SECRET: 'events-secret' }));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/admin/plugins/checkin/kiosk/7/guests/34');
   });
 
   it('renders the kiosk guest back link with the event name and no search link', async () => {

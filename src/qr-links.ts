@@ -45,6 +45,31 @@ export async function resolveCheckinLink(segments: string[], secret: string | un
   return null;
 }
 
+/**
+ * Resolves the values a door scanner actually returns. Besides a direct
+ * `/checkin/...` path, cameras commonly return the complete absolute URL;
+ * older printed badges use the compact `list.guest.signature` token. All
+ * forms converge on the same signature verifier above.
+ */
+export async function resolveCheckinCode(code: string, secret: string | undefined): Promise<CheckinLink | null> {
+  const value = code.trim();
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    const segments = url.pathname.split('/').filter(Boolean);
+    return segments[0] === 'checkin' ? resolveCheckinLink(segments.slice(1), secret) : null;
+  } catch {
+    // Not an absolute URL — continue with direct paths and compact tokens.
+  }
+
+  const pathSegments = value.split('?')[0].split('/').filter(Boolean);
+  if (pathSegments[0] === 'checkin') return resolveCheckinLink(pathSegments.slice(1), secret);
+
+  const tokenSegments = value.split('.').filter(Boolean);
+  return resolveCheckinLink(tokenSegments, secret);
+}
+
 function pageId(parts: string[]): number | null {
   const id = Number(parts[0]);
   return Number.isInteger(id) && id > 0 ? id : null;
