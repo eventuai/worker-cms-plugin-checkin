@@ -6,6 +6,8 @@
 // wrangler.toml for the deployment note on why a copy is needed instead of a
 // shared binding.
 
+import { blake3 } from '@noble/hashes/blake3.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { verifyPayload } from './crypto';
 
 export type CheckinLink =
@@ -55,6 +57,12 @@ export async function resolveCheckinCode(code: string, secret: string | undefine
   const value = code.trim();
   if (!value) return null;
 
+  // The Events plugin renders these compact QR payloads for printed guest
+  // tickets. They intentionally use a short BLAKE3 checksum rather than the
+  // Events plugin secret, so resolve them before trying URL/token forms.
+  const compact = resolveCompactCheckinCode(value);
+  if (compact) return compact;
+
   try {
     const url = new URL(value);
     const segments = url.pathname.split('/').filter(Boolean);
@@ -68,6 +76,42 @@ export async function resolveCheckinCode(code: string, secret: string | undefine
 
   const tokenSegments = value.split('.').filter(Boolean);
   return resolveCheckinLink(tokenSegments, secret);
+}
+
+/**
+ * Resolves the compact QR payload emitted by cms-plugin-events:
+ * `EAI{list-base32}:{guest-id-minus-list-base32}:{M|plus-index}:{checksum}`.
+ * This is also the legacy Eventuai ticket format, retained by Events so
+ * printed tickets remain small and compatible with existing scanners.
+ */
+function resolveCompactCheckinCode(value: string): CheckinLink | null {
+  const match = /^EAI([0-9a-v]+):([0-9a-v]+):(M|[0-9]+):([0-9a-f]{6})$/i.exec(value);
+  if (!match) return null;
+
+  const [, listRaw, guestDeltaRaw, markerRaw, signature] = match;
+  const listId = parseBase32Id(listRaw);
+  const guestDelta = parseBase32Id(guestDeltaRaw);
+  if (!listId || guestDelta === null) return null;
+  const guestId = listId + guestDelta;
+  if (!Number.isSafeInteger(guestId) || guestId <= 0) return null;
+
+  const marker = markerRaw.toUpperCase();
+  const plusIndex = marker === 'M' ? undefined : Number(marker);
+  if (plusIndex !== undefined && (!Number.isSafeInteger(plusIndex) || plusIndex < 0)) return null;
+
+  const signedValue = `qrcode${listId}${guestId}${plusIndex ?? ''}`;
+  const expected = bytesToHex(blake3(new TextEncoder().encode(signedValue))).slice(0, 6);
+  if (signature.toLowerCase() !== expected) return null;
+
+  return plusIndex === undefined
+    ? { kind: 'main', listId, guestId }
+    : { kind: 'plus', listId, guestId, index: plusIndex };
+}
+
+function parseBase32Id(value: string): number | null {
+  if (!/^[0-9a-v]+$/i.test(value)) return null;
+  const id = Number.parseInt(value, 32);
+  return Number.isSafeInteger(id) && id >= 0 ? id : null;
 }
 
 function pageId(parts: string[]): number | null {

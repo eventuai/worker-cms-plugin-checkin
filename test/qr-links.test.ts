@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { blake3 } from '@noble/hashes/blake3.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { signPayload } from '../src/crypto';
 import { resolveCheckinCode, resolveCheckinLink } from '../src/qr-links';
 
@@ -42,5 +44,18 @@ describe('resolveCheckinLink', () => {
     expect(await resolveCheckinCode(`12.34.${sig}`, SECRET)).toEqual({ kind: 'main', listId: 12, guestId: 34 });
     expect(await resolveCheckinCode(`https://checkin.example/checkin/12/34/${sig}?t=tenant-a`, SECRET))
       .toEqual({ kind: 'main', listId: 12, guestId: 34 });
+  });
+
+  it('resolves the compact EAI payload rendered by cms-plugin-events', async () => {
+    const listId = 21996952637102;
+    const guestId = 22011127818988;
+    const signature = bytesToHex(blake3(new TextEncoder().encode(`qrcode${listId}${guestId}`))).slice(0, 6);
+    const code = `EAI${listId.toString(32)}:${(guestId - listId).toString(32)}:M:${signature}`;
+
+    expect(await resolveCheckinCode(code, undefined)).toEqual({ kind: 'main', listId, guestId });
+  });
+
+  it('rejects a compact EAI payload with an invalid checksum', async () => {
+    expect(await resolveCheckinCode('EAI34:p:M:000000', undefined)).toBeNull();
   });
 });
