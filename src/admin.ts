@@ -30,6 +30,8 @@ import { resolveCheckinCode } from './qr-links';
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
 const GUEST_STATUSES = ['to be invited', 'onhold', 'invited', 'confirmed', 'declined', 'unconfirmed', 'Not sent'] as const;
 const COLOR_TAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'] as const;
+/** Rows Liquid renders before the browser appends the rest from embedded JSON. */
+const ALL_GUESTS_INITIAL_RENDER = 100;
 
 export async function handleCheckinAdmin(
   request: Request,
@@ -48,6 +50,9 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
+    if (segments[2] === 'all-guests') {
+      return eventAllGuests(cms, views, eventId, url, jsonOnly);
+    }
     if (segments[2] === 'lists') {
       const listId = pageId(segments[3]);
       if (!listId) return notFoundView(views, 'Guest list not found.', jsonOnly);
@@ -173,7 +178,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
     canCheckIn: access.canCheckIn,
     launchKioskHref: `${kioskBase}/scan`,
-    allGuestsHref: `/admin/plugins/events/events/${event.id}/all-guests`,
+    allGuestsHref: `${ADMIN_BASE}/events/${event.id}/all-guests`,
     // Bottom nav + top search targets.
     dashboardHref: `${ADMIN_BASE}/dashboard`,
     scanHref: `${kioskBase}/scan`,
@@ -203,6 +208,81 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     })),
     activity,
   }, jsonOnly);
+}
+
+/** Check-in-owned roll call across every guest list on one event. */
+async function eventAllGuests(cms: CmsClient, views: Fetcher, eventId: number, url: URL, jsonOnly: boolean): Promise<Response> {
+  const event = await cms.get(eventId).catch(() => null);
+  if (!event || event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
+
+  const lists = (await listByEvent(cms, 'mail_list', event.id)).sort(compareByWeightThenName);
+  const customFields = eventCustomFields(event, lists);
+  const requestedField = url.searchParams.get('cf')?.trim() ?? '';
+  const selectedCustomField = customFields.find((field) => field.key === requestedField || field.legacyKey === requestedField) ?? null;
+  const detailHref = `${ADMIN_BASE}/events/${event.id}/all-guests`;
+  const returnTo = selectedCustomField ? `${detailHref}?cf=${encodeURIComponent(selectedCustomField.key)}` : detailHref;
+  const listGuests = await Promise.all(lists.map(async (list) => ({
+    list,
+    pages: (await cms.list('guest', { pointer: { key: 'mail_list', value: list.id }, limit: 500 })).pages,
+  })));
+  const guests = listGuests
+    .flatMap(({ list, pages }) => pages.map((guest) => ({
+      id: guest.id,
+      name: guest.name,
+      listName: list.name,
+      organization: attr(guest.lect, 'organization'),
+      email: attr(guest.lect, 'email'),
+      status: attr(guest.lect, 'status') || 'Not sent',
+      colorTag: attr(guest.lect, 'color_tag'),
+      customFieldValue: selectedCustomField ? guestCustomFieldValue(guest, selectedCustomField) : '',
+      searchText: chineseSearchText([
+        guest.name,
+        guest.id,
+        list.name,
+        attr(guest.lect, 'email'),
+        attr(guest.lect, 'phone'),
+        attr(guest.lect, 'organization'),
+        attr(guest.lect, 'status'),
+        selectedCustomField ? guestCustomFieldValue(guest, selectedCustomField) : '',
+      ].join(' ')),
+      plusGuests: plusGuestsCap(guest),
+      checkedIn: mainCheckinCount(guest) > 0,
+      guestHref: `${KIOSK_BASE}/${event.id}/guests/${guest.id}?return_to=${encodeURIComponent(returnTo)}`,
+    })))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const initialGuests = jsonOnly ? guests : guests.slice(0, ALL_GUESTS_INITIAL_RENDER);
+  const deferredGuests = jsonOnly ? [] : guests.slice(ALL_GUESTS_INITIAL_RENDER);
+
+  return adminView(views, `All guests — ${event.name}`, 'all-guests', {
+    eventName: event.name,
+    backHref: `${ADMIN_BASE}/events/${event.id}`,
+    detailHref,
+    scanHref: `${KIOSK_BASE}/${event.id}/scan`,
+    settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
+    statuses: GUEST_STATUSES,
+    colorOptions: COLOR_TAGS.map((value) => ({ value, label: value })),
+    hasCustomFields: customFields.length > 0,
+    customFields: customFields.map((field) => ({ key: field.key, label: field.label, selected: field.key === selectedCustomField?.key })),
+    selectedCustomFieldKey: selectedCustomField?.key ?? '',
+    totalCount: guests.length,
+    filteredCount: guests.length,
+    initialCount: initialGuests.length,
+    guests: initialGuests,
+    hasGuests: guests.length > 0,
+    asyncGuests: deferredGuests.length > 0,
+    deferredGuestCount: deferredGuests.length,
+    deferredGuestsJson: scriptSafeJson(deferredGuests),
+  }, jsonOnly);
+}
+
+/** JSON embedded in HTML must remain inert instead of creating markup. */
+function scriptSafeJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 /** Legacy guest-list-details parity: one event-scoped list and all its guests. */

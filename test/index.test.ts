@@ -538,7 +538,8 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html.match(/href="\/admin\/plugins\/checkin\/dashboard"/g)).toHaveLength(1); // top back-to-events link only
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/scan');     // scan nav
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/settings'); // settings nav
-    expect(html).toContain('href="/admin/plugins/events/events/7/all-guests"');
+    expect(html).toContain('href="/admin/plugins/checkin/events/7/all-guests"');
+    expect(html).not.toContain('/admin/plugins/events/events/7/all-guests');
     expect(html).toContain('/admin/plugins/checkin/events/7/lists/12');
     expect(html).not.toContain('Search guests');
     // 1 guest, 1 checked in → 100%
@@ -583,6 +584,9 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('VIP');
     expect(html).toContain('Ada Lovelace');
     expect(html).toContain('data-table-filter-form');
+    expect(html).toContain('data-privacy-table');
+    expect(html).toContain('data-private-field="name"');
+    expect(html).toContain('data-private-field="email"');
     expect(html).toContain('data-filter-search="Ada Lovelace');
     expect(html).toContain('All statuses');
     expect(html).toContain('All color tags');
@@ -591,6 +595,93 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('href="/admin/plugins/checkin/kiosk/7/scan"');
     expect(html).toContain('href="/admin/plugins/checkin/kiosk/7/settings"');
     expect(html).toContain('Checked in');
+  });
+
+  it('renders a separate check-in all-guests page across every event list', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        return Response.json({ pages: [
+          { id: 12, page_type: 'mail_list', name: 'VIP', weight: 1, lect: { _pointers: { event: '7' } } },
+          { id: 13, page_type: 'mail_list', name: 'Press', weight: 2, lect: { _pointers: { event: '7' } } },
+        ], total: 2 });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        const listId = url.searchParams.get('pointer_value');
+        if (listId === '12') {
+          return Response.json({ pages: [{ id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { email: 'ada@example.com', status: 'confirmed' } }], total: 1 });
+        }
+        if (listId === '13') {
+          return Response.json({ pages: [{ id: 35, page_type: 'guest', name: 'Grace Hopper', page_id: 13, lect: { email: 'grace@example.com', status: 'invited' } }], total: 1 });
+        }
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/events/7/all-guests', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    expect(response.status).toBe(200);
+    const html = await renderedText(response);
+    expect(html).toContain('All guests');
+    expect(html).toContain('across every list');
+    expect(html).toContain('Ada Lovelace');
+    expect(html).toContain('Grace Hopper');
+    expect(html).toContain('VIP');
+    expect(html).toContain('Press');
+    expect(html).toContain('data-privacy-table');
+    expect(html).toContain('/admin/plugins/checkin/kiosk/7/guests/34?return_to=%2Fadmin%2Fplugins%2Fcheckin%2Fevents%2F7%2Fall-guests');
+    expect(html).not.toContain('/admin/plugins/events/');
+  });
+
+  it('renders the first 100 check-in guests and progressively embeds the remainder', async () => {
+    const guests = Array.from({ length: 105 }, (_, index) => ({
+      id: index + 1,
+      page_type: 'guest',
+      name: index === 104 ? 'Guest 105 </script><script>unsafe()</script>' : `Guest ${String(index + 1).padStart(3, '0')}`,
+      page_id: 12,
+      lect: { email: `guest-${index + 1}@example.com`, status: 'confirmed' },
+    }));
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', lect: { _pointers: { event: '7' } } }], total: 1 });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        expect(url.searchParams.get('pointer_value')).toBe('12');
+        return Response.json({ pages: guests, total: guests.length });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/events/7/all-guests', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+
+    expect(html).toContain('data-checkin-all-guests-async');
+    expect(html).toContain('Rendering 100 of 105 matching guests…');
+    expect(html).toContain('<script src="/admin/plugins/checkin/assets/js/event-dashboard.js" defer></script>');
+    expect((html.match(/data-guest-row/g) ?? [])).toHaveLength(100);
+    expect(html).toContain('Guest 100');
+    expect(html).not.toContain('Guest 101</a>');
+    expect(html).toContain('\\u003c/script\\u003e');
+
+    const embedded = html.match(/<div hidden data-checkin-all-guests-json>([\s\S]*?)<\/div>/);
+    expect(embedded).not.toBeNull();
+    const deferred = JSON.parse(embedded?.[1] ?? '[]') as Array<{ id: number; name: string; guestHref: string }>;
+    expect(deferred).toHaveLength(5);
+    expect(deferred[0]).toMatchObject({ id: 101, name: 'Guest 101' });
+    expect(deferred[4]).toMatchObject({ id: 105, name: 'Guest 105 </script><script>unsafe()</script>' });
+    expect(deferred[4].guestHref).toContain('/admin/plugins/checkin/kiosk/7/guests/105');
   });
 
   it('returns a guest opened from a list to that guest list', async () => {

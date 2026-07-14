@@ -39,7 +39,7 @@
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200">
   <div class="overflow-x-auto w-full">
-    <table class="w-full min-w-[680px] text-left" data-table-filter="guests">
+    <table class="w-full min-w-[680px] text-left" data-table-filter="guests" data-privacy-table>
       <thead class="border-b border-gray-200 bg-gray-50">
         <tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name / Email</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Organisation</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>{% if hasCustomFields %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"><form method="get" action="{{ detailHref | escape }}"><select class="max-w-[12rem] cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold uppercase tracking-wider text-gray-500" name="cf" data-autosubmit><option value="">Custom field</option>{% for field in customFields %}<option value="{{ field.key | escape }}"{% if field.selected %} selected{% endif %}>{{ field.label | escape }}</option>{% endfor %}</select></form></th>{% endif %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Check-in</th><th class="px-6 py-3"></th></tr>
       </thead>
@@ -50,8 +50,8 @@
               <div class="flex min-w-0 items-center gap-2">
                 {% render "color-tag-picker", value: guest.colorTag, label: "Color tag" %}
                 <div class="min-w-0">
-                  <a class="block truncate font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref | escape }}">{{ guest.name | escape }}</a>
-                  <div class="truncate text-sm text-gray-500">{{ guest.email | escape }}</div>
+                  <a class="block truncate font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref | escape }}" data-private-field="name">{{ guest.name | escape }}</a>
+                  <div class="truncate text-sm text-gray-500" data-private-field="email">{{ guest.email | escape }}</div>
                 </div>
               </div>
             </td>

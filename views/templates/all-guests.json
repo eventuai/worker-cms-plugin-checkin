@@ -1,0 +1,6 @@
+{
+  "sections": {
+    "main": { "type": "all-guests" }
+  },
+  "order": ["main"]
+}
