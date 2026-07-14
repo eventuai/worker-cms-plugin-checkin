@@ -479,6 +479,7 @@ async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage
     return (await undoCheckin(cms, guest, (parsed) => parsed.kind === 'session' && parsed.sessionId === sessionId)).guest;
   }
   if (action === 'save-rfid') {
+    if (!eventRfidEnabled(event)) return guest;
     const tag = String(form?.get('tag') ?? '').trim();
     if (tag) return saveRfid(cms, guest, tag);
     return guest;
@@ -514,12 +515,18 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
     hasPlusGuests: plusGuests.length > 0,
     sessions,
     hasSessions: sessions.length > 0,
+    hasRfid: eventRfidEnabled(event),
     rfid: attr(guest.lect, 'barcode'),
     actionBase,
     backHref: `${KIOSK_BASE}/${event.id}/scan`,
     badgeHref: `${actionBase}/badge`,
     settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
   }, jsonOnly);
+}
+
+/** RFID pairing is opt-in per event in the Events plugin's event attributes. */
+function eventRfidEnabled(event: CmsPage): boolean {
+  return attr(event.lect, 'rfid').trim().toLowerCase() === 'yes';
 }
 
 async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Promise<Response> {

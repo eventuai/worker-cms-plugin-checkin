@@ -73,7 +73,7 @@
   </div>
   {% endif %}
 
-  {% if canCheckIn %}
+  {% if canCheckIn and hasRfid %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
     <h2 class="text-base font-bold text-gray-900 mb-2">RFID tag</h2>
     <p class="text-sm text-gray-500 mb-2">{% if rfid != blank %}Bound to: {{ rfid | escape }}{% else %}No tag bound yet.{% endif %}</p>

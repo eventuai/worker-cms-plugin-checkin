@@ -276,6 +276,26 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('&larr; Launch Party</a>');
     expect(html).not.toContain('&larr; Scan</a>');
     expect(html).not.toContain('>Search</a>');
+    expect(html).not.toContain('RFID tag');
+  });
+
+  it('shows RFID pairing only when the event enables rfid', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: { rfid: 'yes' } } });
+      if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { barcode: 'RFID-001' } } });
+      if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/guests/34', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+
+    expect(html).toContain('RFID tag');
+    expect(html).toContain('Bound to: RFID-001');
   });
 
   it('rejects a guest that belongs to another event', async () => {
