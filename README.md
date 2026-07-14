@@ -8,7 +8,7 @@ Event check-in plugin for [Worker CMS](https://github.com/eventuai) — QR/barco
 - **Passcode-lite kiosk** (`/kiosk/{eventId}`) — a door/tablet device unlocks with the event's `checkin_lite_passcode` (no CMS login needed) and can then:
   - scan a QR/barcode or enter a code manually — searches every guest list on the event
   - search guests by name/email/organization across the whole event
-  - check in / undo the main attendee, named or unnamed plus guests, and per-session check-ins (for multi-session events)
+  - check in / undo the main attendee, named or unnamed plus guests (individually or all at once), and per-session check-ins (for multi-session events)
   - register a walk-in guest on the spot, landing in the event's "Adhoc" list, with optional immediate check-in
   - bind an RFID tag to a guest for future scans
   - preview and print a badge from the event's label template, via the browser print dialog, a WebUSB label printer, or a local printer-server relay

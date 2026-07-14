@@ -12,10 +12,12 @@ import {
   parseCheckinEntry,
   plusCheckinCount,
   plusGuestsCap,
+  recordAllPlusGuestCheckins,
   recordCheckin,
   searchGuests,
   sessionCheckinCount,
   undoCheckin,
+  undoAllPlusGuestCheckins,
 } from '../src/checkin-actions';
 
 afterEach(() => {
@@ -132,6 +134,64 @@ describe('CMS-backed actions', () => {
     expect(putBody.lect.checkin[1].message).toBe(formatPlusMessage(0, 'kiosk'));
     expect(putBody.lect.response).toEqual([
       expect.objectContaining({ status: 'checked-in', message: formatPlusMessage(0, 'kiosk') }),
+    ]);
+  });
+
+  it('recordAllPlusGuestCheckins adds only missing companion indexes and preserves main/session entries', async () => {
+    const existing = guest({
+      lect: {
+        plus_guests: '3',
+        checkin: [
+          { status: 'checked-in', date: '1', message: formatMainMessage('kiosk') },
+          { status: 'checked-in', date: '2', message: formatPlusMessage(1, 'kiosk') },
+          { status: 'checked-in', date: '3', message: formatSessionMessage('2', 'Keynote') },
+        ],
+      },
+    });
+    let putBody: any;
+    const cms = stubCms({ get: () => existing, put: (body) => { putBody = body; } });
+
+    const { added } = await recordAllPlusGuestCheckins(cms, existing);
+
+    expect(added).toBe(2);
+    expect(putBody.lect.checkin.map((entry: { message: string }) => entry.message)).toEqual([
+      formatMainMessage('kiosk'),
+      formatPlusMessage(1, 'kiosk'),
+      formatSessionMessage('2', 'Keynote'),
+      formatPlusMessage(0, 'kiosk'),
+      formatPlusMessage(2, 'kiosk'),
+    ]);
+    expect(putBody.lect.response.map((entry: { message: string }) => entry.message)).toEqual([
+      formatPlusMessage(0, 'kiosk'),
+      formatPlusMessage(2, 'kiosk'),
+    ]);
+  });
+
+  it('undoAllPlusGuestCheckins removes every companion while preserving main/session and adds one audit entry', async () => {
+    const existing = guest({
+      lect: {
+        checkin: [
+          { status: 'checked-in', date: '1', message: formatMainMessage('kiosk') },
+          { status: 'checked-in', date: '2', message: formatPlusMessage(0, 'kiosk') },
+          { status: 'checked-in', date: '3', message: formatSessionMessage('2', 'Keynote') },
+          { status: 'checked-in', date: '4', message: formatPlusMessage(1, 'kiosk', 'Grace') },
+        ],
+        response: [{ status: 'confirmed', date: '0', message: 'guest response' }],
+      },
+    });
+    let putBody: any;
+    const cms = stubCms({ get: () => existing, put: (body) => { putBody = body; } });
+
+    const { removed } = await undoAllPlusGuestCheckins(cms, existing);
+
+    expect(removed).toBe(2);
+    expect(putBody.lect.checkin.map((entry: { message: string }) => entry.message)).toEqual([
+      formatMainMessage('kiosk'),
+      formatSessionMessage('2', 'Keynote'),
+    ]);
+    expect(putBody.lect.response).toEqual([
+      expect.objectContaining({ status: 'confirmed', message: 'guest response' }),
+      expect.objectContaining({ status: 'undo-plus-guests', message: 'undid 2 plus guest check-ins from kiosk' }),
     ]);
   });
 

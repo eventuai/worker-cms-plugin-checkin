@@ -107,6 +107,31 @@ export async function recordCheckin(cms: CmsClient, guest: CmsPage, message: str
 }
 
 /**
+ * Checks in every remaining companion slot in one CMS write. Existing main,
+ * session, and companion entries are preserved; already checked-in companion
+ * indexes are skipped so repeated submissions are idempotent.
+ */
+export async function recordAllPlusGuestCheckins(
+  cms: CmsClient,
+  guest: CmsPage,
+  via: CheckinVia = 'kiosk',
+): Promise<{ guest: CmsPage; added: number }> {
+  const cap = plusGuestsCap(guest);
+  const entries = Array.from({ length: cap }, (_, index) => index)
+    .filter((index) => plusCheckinCount(guest, index) === 0)
+    .map((index) => ({ status: 'checked-in', date: new Date().toISOString(), message: formatPlusMessage(index, via) }));
+  if (entries.length === 0) return { guest, added: 0 };
+
+  const updated = await cms.update(guest.id, {
+    lect: {
+      checkin: [...checkins(guest.lect), ...entries],
+      response: [...activityEntries(guest), ...entries],
+    },
+  });
+  return { guest: updated, added: entries.length };
+}
+
+/**
  * Removes the most recent active check-in matching `predicate` and adds a
  * corresponding immutable activity entry. A no-op (guest returned unchanged,
  * `removed: false`) if nothing matches.
@@ -131,6 +156,31 @@ export async function undoCheckin(cms: CmsClient, guest: CmsPage, predicate: (pa
     },
   });
   return { guest: updated, removed: true };
+}
+
+/**
+ * Removes every active companion check-in in one CMS write while preserving
+ * main-attendee and session state. One aggregate activity entry records the
+ * bulk undo, matching the legacy kiosk audit trail.
+ */
+export async function undoAllPlusGuestCheckins(cms: CmsClient, guest: CmsPage): Promise<{ guest: CmsPage; removed: number }> {
+  const existing = checkins(guest.lect);
+  const remaining = existing.filter((entry) => parseCheckinEntry(String(entry.message ?? '')).kind !== 'plus');
+  const removed = existing.length - remaining.length;
+  if (removed === 0) return { guest, removed: 0 };
+
+  const entry: CheckinRecord = {
+    status: 'undo-plus-guests',
+    date: new Date().toISOString(),
+    message: `undid ${removed} plus guest check-in${removed === 1 ? '' : 's'} from kiosk`,
+  };
+  const updated = await cms.update(guest.id, {
+    lect: {
+      checkin: remaining,
+      response: [...activityEntries(guest), entry],
+    },
+  });
+  return { guest: updated, removed };
 }
 
 /** Excludes the empty row seeded by the response blueprint. */

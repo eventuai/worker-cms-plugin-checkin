@@ -302,6 +302,64 @@ describe('kiosk (login-gated admin surface)', () => {
     ]);
   });
 
+  it('checks in and undoes all plus guests while preserving main and session check-ins', async () => {
+    let guestLect: Record<string, unknown> = {
+      plus_guests: '3',
+      checkin: [
+        { status: 'checked-in', date: '1', message: 'main attendee checked-in from kiosk' },
+        { status: 'checked-in', date: '2', message: 'plus guest 2 checked-in from kiosk' },
+        { status: 'checked-in', date: '3', message: 'session 0 "Keynote" checked-in from kiosk' },
+      ],
+      response: [{ status: 'checked-in', date: '2', message: 'plus guest 2 checked-in from kiosk' }],
+    };
+    const updates: Array<{ lect: Record<string, unknown> }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      const method = init?.method ?? 'GET';
+      if (url.pathname === '/__cms/pages/7' && method === 'GET') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages/12' && method === 'GET') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', lect: { _pointers: { event: '7' } } } });
+      if (url.pathname === '/__cms/pages/34' && method === 'GET') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: guestLect } });
+      if (url.pathname === '/__cms/pages/34' && method === 'PUT') {
+        const body = JSON.parse(String(init?.body)) as { lect: Record<string, unknown> };
+        updates.push(body);
+        guestLect = { ...guestLect, ...body.lect };
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: guestLect } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+    const testEnv = env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' });
+
+    const checkin = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/checkin-all-plus', {
+      method: 'POST',
+      headers: { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' },
+      body: '',
+    }), testEnv);
+
+    expect(checkin.status).toBe(302);
+    expect((updates[0].lect.checkin as Array<{ message: string }>).map((entry) => entry.message)).toEqual([
+      'main attendee checked-in from kiosk',
+      'plus guest 2 checked-in from kiosk',
+      'session 0 "Keynote" checked-in from kiosk',
+      'plus guest 1 checked-in from kiosk',
+      'plus guest 3 checked-in from kiosk',
+    ]);
+
+    const undo = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/undo-all-plus', {
+      method: 'POST',
+      headers: { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' },
+      body: '',
+    }), testEnv);
+
+    expect(undo.status).toBe(302);
+    expect((updates[1].lect.checkin as Array<{ message: string }>).map((entry) => entry.message)).toEqual([
+      'main attendee checked-in from kiosk',
+      'session 0 "Keynote" checked-in from kiosk',
+    ]);
+    expect(updates[1].lect.response as Array<{ status: string; message: string }>).toContainEqual(
+      expect.objectContaining({ status: 'undo-plus-guests', message: 'undid 3 plus guest check-ins from kiosk' }),
+    );
+  });
+
   it('opens the correct guest when the kiosk scans a signed Events QR token', async () => {
     const code = `12.34.${await signPayload('events-secret', '12.34')}`;
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
@@ -330,7 +388,7 @@ describe('kiosk (login-gated admin surface)', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
       if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
-      if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: {} } });
+      if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { plus_guests: '2', checkin: [{ status: 'checked-in', date: '2026-07-02', message: 'plus guest 1 checked-in from kiosk' }] } } });
       if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'label') return Response.json({
         pages: [
@@ -353,6 +411,10 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).not.toContain('&larr; Scan</a>');
     expect(html).not.toContain('>Search</a>');
     expect(html).not.toContain('RFID tag');
+    expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/checkin-all-plus"');
+    expect(html).toContain('>Check in all</button>');
+    expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/undo-all-plus"');
+    expect(html).toContain('>Undo all</button>');
     expect(html).toContain('Name badge');
     expect(html).toContain('Staff badge');
     expect(html).not.toContain('Unpublished badge');

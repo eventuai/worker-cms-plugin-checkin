@@ -16,10 +16,12 @@ import {
   plusCheckinCount,
   plusGuestsCap,
   recordCheckin,
+  recordAllPlusGuestCheckins,
   saveRfid,
   searchGuests,
   sessionCheckinCount,
   undoCheckin,
+  undoAllPlusGuestCheckins,
 } from './checkin-actions';
 import { eventLabels, guestTokens, labelDesign, labelFrame, renderLabel } from './labels';
 import { eventCustomFields, guestCustomFieldValue, type CustomField } from './custom-fields';
@@ -610,9 +612,15 @@ async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage
     }
     return guest;
   }
+  if (action === 'checkin-all-plus') {
+    return (await recordAllPlusGuestCheckins(cms, guest)).guest;
+  }
   if (action === 'undo-plus') {
     const index = Number.parseInt(String(form?.get('index') ?? ''), 10);
     return (await undoCheckin(cms, guest, (parsed) => parsed.kind === 'plus' && parsed.index === index)).guest;
+  }
+  if (action === 'undo-all-plus') {
+    return (await undoAllPlusGuestCheckins(cms, guest)).guest;
   }
   if (action === 'checkin-session') {
     const sessionId = String(form?.get('session_id') ?? '');
@@ -640,6 +648,7 @@ async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, 
     label: `Plus guest ${index + 1}`,
     checkedIn: plusCheckinCount(guest, index) > 0,
   }));
+  const checkedInPlusGuests = plusGuests.filter((plus) => plus.checkedIn).length;
   const sessions = checkinSessions(event).map((session) => ({ ...session, checkedIn: sessionCheckinCount(guest, session.id) > 0 }));
   const actionBase = `${KIOSK_BASE}/${event.id}/guests/${guest.id}`;
   // Badge previews are additive to check-in; an unavailable labels endpoint
@@ -663,6 +672,8 @@ async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, 
     mainAtCap: mainCheckinCount(guest) >= maxMainCheckins(guest),
     plusGuests,
     hasPlusGuests: plusGuests.length > 0,
+    hasCheckedInPlusGuests: checkedInPlusGuests > 0,
+    hasUncheckedPlusGuests: checkedInPlusGuests < plusGuests.length,
     sessions,
     hasSessions: sessions.length > 0,
     hasRfid: eventRfidEnabled(event),

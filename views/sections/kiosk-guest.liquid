@@ -27,7 +27,15 @@
 
   {% if hasPlusGuests %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    <h2 class="text-base font-bold text-gray-900 mb-2">Plus guests</h2>
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-base font-bold text-gray-900">Plus guests</h2>
+      {% if canCheckIn %}
+        <div class="flex flex-wrap items-center gap-2">
+          {% if hasUncheckedPlusGuests %}<form method="post" action="{{ actionBase | escape }}/checkin-all-plus"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in all</button></form>{% endif %}
+          {% if hasCheckedInPlusGuests %}<form method="post" action="{{ actionBase | escape }}/undo-all-plus" onsubmit="return confirm('Undo every plus guest check-in?')"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo all</button></form>{% endif %}
+        </div>
+      {% endif %}
+    </div>
     <div class="divide-y divide-gray-100">
       {% for plus in plusGuests %}
         <div class="flex items-center justify-between gap-3 py-2">
