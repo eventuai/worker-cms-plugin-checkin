@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 import { renderView } from '../src/templates/liquid';
 import { signPayload } from '../src/crypto';
+import { chineseSearchText } from '../src/chinese';
 
 interface PluginEnv {
   CMS_URL?: string;
@@ -19,6 +20,9 @@ function views(): Fetcher {
     async fetch(input: RequestInfo | URL): Promise<Response> {
       const url = typeof input === 'string' ? new URL(input) : input instanceof URL ? input : new URL(input.url);
       try {
+        if (url.pathname === '/snippets/color-tag-picker.liquid') {
+          return new Response(await readFile('/Users/colin/Documents/code/workers/cms/views/snippets/color-tag-picker.liquid', 'utf8'));
+        }
         return new Response(await readFile(fileURLToPath(new URL(`../views${url.pathname}`, import.meta.url).href), 'utf8'));
       } catch {
         return new Response('not found', { status: 404 });
@@ -46,6 +50,14 @@ async function renderedText(response: Response): Promise<string> {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+});
+
+describe('guest-list client search text', () => {
+  it('contains simplified and traditional Chinese variants', () => {
+    const searchText = chineseSearchText('蘇瑋');
+    expect(searchText).toContain('蘇瑋');
+    expect(searchText).toContain('苏玮');
+  });
 });
 
 describe('plugin contract', () => {
@@ -196,10 +208,12 @@ describe('kiosk (login-gated admin surface)', () => {
 
     expect(html).toContain('<div class="max-w-md">');
     expect(html).toContain('Printer mode');
+    expect(html).toContain('href="/admin/plugins/checkin/events/7"');
+    expect(html).not.toContain('>Search</a>');
   });
 
   it('checks a guest in from the kiosk and redirects back to the guest, scoping the guest to the event', async () => {
-    const updates: Array<{ lect: { checkin: Array<{ status: string; message: string }> } }> = [];
+    const updates: Array<{ lect: { checkin: Array<{ status: string; message: string }>; response: Array<{ status: string; message: string }> } }> = [];
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
       const method = init?.method ?? 'GET';
@@ -231,6 +245,37 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(response.headers.get('location')).toBe('/admin/plugins/checkin/kiosk/7/guests/34');
     expect(updates).toHaveLength(1);
     expect(updates[0].lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
+    expect(updates[0].lect.response[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
+  });
+
+  it('undoes a kiosk check-in while adding an immutable guest activity entry', async () => {
+    const updates: Array<{ lect: { checkin: Array<{ status: string; message: string }>; response: Array<{ status: string; message: string }> } }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      const method = init?.method ?? 'GET';
+      if (url.pathname === '/__cms/pages/7' && method === 'GET') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages/34' && method === 'GET') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { checkin: [{ status: 'checked-in', date: '2026-07-02', message: 'main attendee checked-in from kiosk' }], response: [{ status: 'checked-in', date: '2026-07-02', message: 'main attendee checked-in from kiosk' }] } } });
+      if (url.pathname === '/__cms/pages/12' && method === 'GET') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      if (url.pathname === '/__cms/pages/34' && method === 'PUT') {
+        const body = JSON.parse(String(init?.body));
+        updates.push(body);
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: body.lect } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/undo-main', {
+      method: 'POST',
+      headers: { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' },
+      body: '',
+    }), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
+
+    expect(response.status).toBe(302);
+    expect(updates[0].lect.checkin).toEqual([]);
+    expect(updates[0].lect.response).toEqual([
+      expect.objectContaining({ status: 'checked-in', message: 'main attendee checked-in from kiosk' }),
+      expect.objectContaining({ status: 'undo-main-attendee', message: 'undid main attendee check-in from kiosk' }),
+    ]);
   });
 
   it('opens the correct guest when the kiosk scans a signed Events QR token', async () => {
@@ -263,6 +308,13 @@ describe('kiosk (login-gated admin surface)', () => {
       if (url.pathname === '/__cms/pages/7') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
       if (url.pathname === '/__cms/pages/34') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: {} } });
       if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'label') return Response.json({
+        pages: [
+          { id: 50, page_type: 'label', name: 'Name badge', isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@name]' }] }) } },
+          { id: 51, page_type: 'label', name: 'Staff badge', isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@organization]' }] }) } },
+          { id: 52, page_type: 'label', name: 'Unpublished badge', isPublished: false, lect: { design: '{}' } },
+        ], total: 3,
+      });
       return new Response('not found', { status: 404 });
     }));
 
@@ -277,6 +329,10 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).not.toContain('&larr; Scan</a>');
     expect(html).not.toContain('>Search</a>');
     expect(html).not.toContain('RFID tag');
+    expect(html).toContain('Name badge');
+    expect(html).toContain('Staff badge');
+    expect(html).not.toContain('Unpublished badge');
+    expect(html).toContain('/admin/plugins/checkin/assets/js/kiosk-labels.js');
   });
 
   it('shows RFID pairing only when the event enables rfid', async () => {
@@ -372,6 +428,12 @@ describe('kiosk (login-gated admin surface)', () => {
       if (url.pathname === '/__cms/pages/7') {
         return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: { _blocks: [{ _type: 'rsvp-custom', _weight: 0, custom_input: [{ label: 'Meal preference' }] }] } } });
       }
+      if (url.pathname === '/__cms/pages/12') {
+        return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      }
+      if (url.pathname === '/__cms/pages/34') {
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { organization: 'AE', plus_guests: '1', checkin: [{ status: 'checked-in', date: '2026-07-02', message: 'main attendee checked-in from kiosk' }] } } });
+      }
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
         return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } }], total: 1 });
       }
@@ -409,6 +471,12 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
       if (url.pathname === '/__cms/pages/7') {
         return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: { _blocks: [{ _type: 'rsvp-custom', _weight: 0, custom_input: [{ label: 'Meal preference' }] }] } } });
       }
+      if (url.pathname === '/__cms/pages/12') {
+        return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
+      }
+      if (url.pathname === '/__cms/pages/34') {
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: { organization: 'AE', plus_guests: '1', checkin: [{ status: 'checked-in', date: '2026-07-02', message: 'main attendee checked-in from kiosk' }] } } });
+      }
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
         return Response.json({ pages: [{ id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } }], total: 1 });
       }
@@ -438,9 +506,41 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('data-walkin-panel');
     expect(html).toContain('checkin:event-dashboard:walkin-collapsed:7');
     expect(html).toContain('/admin/plugins/checkin/assets/js/event-dashboard.js');
+    expect(html.match(/href="\/admin\/plugins\/checkin\/dashboard"/g)).toHaveLength(1); // top back-to-events link only
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/scan');     // scan nav
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/settings'); // settings nav
+    expect(html).toContain('/admin/plugins/checkin/events/7/lists/12');
+    expect(html).not.toContain('Search guests');
     // 1 guest, 1 checked in → 100%
     expect(html).toContain('100%');
+  });
+
+  it('renders an event-scoped guest-list detail page with every guest', async () => {
+    stubEventWithData();
+    const response = await plugin.fetch(
+      request('/__plugin/admin/events/7/lists/12', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    expect(response.status).toBe(200);
+    const html = await renderedText(response);
+    expect(html).toContain('VIP');
+    expect(html).toContain('Ada Lovelace');
+    expect(html).toContain('data-table-filter-form');
+    expect(html).toContain('data-filter-search="Ada Lovelace');
+    expect(html).toContain('All statuses');
+    expect(html).toContain('All color tags');
+    expect(html).toContain('data-filter-status="Not sent"');
+    expect(html).toContain('/admin/plugins/checkin/kiosk/7/guests/34?return_to=%2Fadmin%2Fplugins%2Fcheckin%2Fevents%2F7%2Flists%2F12');
+    expect(html).toContain('Checked in');
+  });
+
+  it('returns a guest opened from a list to that guest list', async () => {
+    stubEventWithData();
+    const response = await plugin.fetch(
+      request('/__plugin/admin/kiosk/7/guests/34?return_to=%2Fadmin%2Fplugins%2Fcheckin%2Fevents%2F7%2Flists%2F12', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+    expect(html).toContain('href="/admin/plugins/checkin/events/7/lists/12"');
   });
 });

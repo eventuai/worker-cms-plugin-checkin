@@ -130,9 +130,12 @@ describe('CMS-backed actions', () => {
     await recordCheckin(cms, existing, formatPlusMessage(0, 'kiosk'));
     expect(putBody.lect.checkin).toHaveLength(2);
     expect(putBody.lect.checkin[1].message).toBe(formatPlusMessage(0, 'kiosk'));
+    expect(putBody.lect.response).toEqual([
+      expect.objectContaining({ status: 'checked-in', message: formatPlusMessage(0, 'kiosk') }),
+    ]);
   });
 
-  it('undoCheckin removes only the most recent matching entry', async () => {
+  it('undoCheckin removes only the most recent matching entry and records an immutable undo activity', async () => {
     const existing = guest({
       lect: {
         checkin: [
@@ -151,6 +154,12 @@ describe('CMS-backed actions', () => {
     expect(putBody.lect.checkin.map((e: { message: string }) => e.message)).toEqual([
       formatPlusMessage(0, 'kiosk'),
       formatMainMessage('kiosk'),
+    ]);
+    expect(putBody.lect.response).toEqual([
+      expect.objectContaining({
+        status: 'undo-plus-guest',
+        message: 'undid plus guest 1 check-in from kiosk',
+      }),
     ]);
   });
 

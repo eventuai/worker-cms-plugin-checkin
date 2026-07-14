@@ -84,15 +84,20 @@
   </div>
   {% endif %}
 
-  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    <h2 class="text-base font-bold text-gray-900 mb-2">Badge</h2>
-    <img src="{{ badgeHref | escape }}" alt="Badge preview" class="w-full rounded-lg border border-gray-200 mb-2">
-    <button type="button" id="printBadgeBtn" data-badge-href="{{ badgeHref | escape }}" data-width-mm="60" data-height-mm="30" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Print badge</button>
-    <p class="text-xs text-gray-400 mt-2">Uses the printer configured in <a href="{{ settingsHref | escape }}" class="text-indigo-600 hover:text-indigo-800">Settings</a>.</p>
-  </div>
+  {% if hasLabels %}
+    <textarea data-label-tokens hidden readonly>{{ labelTokens | escape }}</textarea>
+    <div class="space-y-4 mb-4">
+      {% for label in labels %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <h2 class="text-base font-bold text-gray-900 mb-3">{{ label.name | escape }}</h2>
+          <textarea data-label-design hidden readonly>{{ label.design | escape }}</textarea>
+          <div data-label-preview class="flex justify-center overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3" aria-label="{{ label.name | escape }} preview"></div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 </div>
 
-<textarea id="bitmapOutput" class="hidden" aria-hidden="true"></textarea>
-<script src="/admin/plugins/checkin/assets/js/encoder.js"></script>
-<script src="/admin/plugins/checkin/assets/js/printer.js"></script>
+<script src="/admin/plugins/events/assets/qrcode.min.js"></script>
+<script src="/admin/plugins/checkin/assets/js/kiosk-labels.js"></script>
 <script src="/admin/plugins/checkin/assets/js/kiosk.js"></script>

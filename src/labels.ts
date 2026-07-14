@@ -15,10 +15,15 @@ export interface LabelFrame {
   svg: string;
 }
 
-/** Lists an event's label templates (design-time pages created via the events plugin's admin). */
+/** Lists the published label templates configured in the Events admin. */
 export async function eventLabels(cms: CmsClient, eventId: number): Promise<CmsPage[]> {
-  const { pages } = await cms.list('label', { parentId: eventId, limit: 500 });
-  return pages;
+  const { pages } = await cms.listWithLiveStatus('label', { parentId: eventId, limit: 500 });
+  return pages.filter((label) => label.isPublished === true);
+}
+
+/** The Events plugin stores the editor document as JSON in `lect.design`. */
+export function labelDesign(label: CmsPage): string {
+  return attr(label.lect, 'design');
 }
 
 export function labelFrame(label: CmsPage): LabelFrame {
@@ -32,13 +37,29 @@ export function labelFrame(label: CmsPage): LabelFrame {
   };
 }
 
-export function guestTokens(guest: CmsPage): Record<string, string> {
-  return {
-    name: guest.name || localized(guest.lect, 'name'),
-    organization: attr(guest.lect, 'organization'),
-    email: attr(guest.lect, 'email'),
-    qr_code: attr(guest.lect, 'qrcode'),
-  };
+export function guestTokens(guest: CmsPage, list?: CmsPage, event?: CmsPage): Record<string, string> {
+  const tokens: Record<string, string> = {};
+  for (const [key, value] of Object.entries(guest.lect)) {
+    if (key.startsWith('_')) continue;
+    const token = key.replace(/[^A-Za-z0-9_]/g, '_');
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') tokens[token] = String(value);
+    else if (value && typeof value === 'object' && !Array.isArray(value)) tokens[token] = localized(guest.lect, key);
+  }
+  tokens.name = guest.name || localized(guest.lect, 'name');
+  tokens.organization ||= attr(guest.lect, 'organization');
+  tokens.email ||= attr(guest.lect, 'email');
+  tokens.qr_code = attr(guest.lect, 'qrcode');
+  tokens.lead_id = String(guest.id);
+  tokens.lead_id_short = guest.id.toString(36);
+  if (list) {
+    tokens.mail_list_id = String(list.id);
+    tokens.mail_list_id_short = list.id.toString(36);
+  }
+  if (event) {
+    tokens.event_id = String(event.id);
+    tokens.event_slug = event.slug ?? '';
+  }
+  return tokens;
 }
 
 export function renderLabel(svg: string, values: Record<string, string>): string {

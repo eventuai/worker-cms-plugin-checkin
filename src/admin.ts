@@ -21,12 +21,15 @@ import {
   sessionCheckinCount,
   undoCheckin,
 } from './checkin-actions';
-import { eventLabels, guestTokens, labelFrame, renderLabel } from './labels';
+import { eventLabels, guestTokens, labelDesign, labelFrame, renderLabel } from './labels';
 import { eventCustomFields, guestCustomFieldValue, type CustomField } from './custom-fields';
+import { chineseSearchText } from './chinese';
 import { forbidden, type CheckinAccess } from './permissions';
 import { resolveCheckinCode } from './qr-links';
 
 const ADMIN_BASE = `/admin/plugins/${PLUGIN_ID}`;
+const GUEST_STATUSES = ['to be invited', 'onhold', 'invited', 'confirmed', 'declined', 'unconfirmed', 'Not sent'] as const;
+const COLOR_TAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'] as const;
 
 export async function handleCheckinAdmin(
   request: Request,
@@ -45,6 +48,11 @@ export async function handleCheckinAdmin(
   if (section === 'events') {
     const eventId = pageId(segments[1]);
     if (!eventId) return notFoundView(views, 'Event not found.', jsonOnly);
+    if (segments[2] === 'lists') {
+      const listId = pageId(segments[3]);
+      if (!listId) return notFoundView(views, 'Guest list not found.', jsonOnly);
+      return guestListDetails(cms, views, eventId, listId, url, jsonOnly);
+    }
     return eventDashboard(cms, views, eventId, jsonOnly, access);
   }
 
@@ -183,6 +191,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
       id: list.id,
       name: list.name,
       allowCheckin: attr(list.lect, 'allow_checkin') !== 'no',
+      detailHref: `${ADMIN_BASE}/events/${event.id}/lists/${list.id}`,
       searchHref: `${ADMIN_BASE}/rsvp/${list.id}/guests/search`,
       checkedIn: s.checked_in_count,
       total: s.guest_count,
@@ -190,6 +199,58 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
       totalHeadcount: s.guest_total,
     })),
     activity,
+  }, jsonOnly);
+}
+
+/** Legacy guest-list-details parity: one event-scoped list and all its guests. */
+async function guestListDetails(cms: CmsClient, views: Fetcher, eventId: number, listId: number, url: URL, jsonOnly: boolean): Promise<Response> {
+  const [event, list] = await Promise.all([
+    cms.get(eventId).catch(() => null),
+    cms.get(listId).catch(() => null),
+  ]);
+  if (!event || event.page_type !== 'event' || !list || list.page_type !== 'mail_list' || pointer(list.lect, 'event') !== String(eventId)) {
+    return notFoundView(views, 'Guest list not found.', jsonOnly);
+  }
+
+  const detailHref = `${ADMIN_BASE}/events/${event.id}/lists/${list.id}`;
+  const customFields = eventCustomFields(event, [list]);
+  const requestedField = url.searchParams.get('cf')?.trim() ?? '';
+  const selectedCustomField = customFields.find((field) => field.key === requestedField || field.legacyKey === requestedField) ?? null;
+  const { pages } = await cms.list('guest', { pointer: { key: 'mail_list', value: list.id }, limit: 500 });
+  const guests = pages
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((guest) => ({
+      id: guest.id,
+      name: guest.name,
+      organization: attr(guest.lect, 'organization'),
+      email: attr(guest.lect, 'email'),
+      status: attr(guest.lect, 'status') || 'Not sent',
+      colorTag: attr(guest.lect, 'color_tag'),
+      customFieldValue: selectedCustomField ? guestCustomFieldValue(guest, selectedCustomField) : '',
+      searchText: chineseSearchText([
+        guest.name,
+        attr(guest.lect, 'email'),
+        attr(guest.lect, 'organization'),
+        attr(guest.lect, 'status'),
+        selectedCustomField ? guestCustomFieldValue(guest, selectedCustomField) : '',
+      ].join(' ')),
+      plusGuests: plusGuestsCap(guest),
+      checkedIn: mainCheckinCount(guest) > 0,
+      guestHref: `${KIOSK_BASE}/${event.id}/guests/${guest.id}?return_to=${encodeURIComponent(detailHref)}`,
+    }));
+
+  return adminView(views, `${list.name} — ${event.name}`, 'guest-list-details', {
+    eventName: event.name,
+    listName: list.name,
+    backHref: `${ADMIN_BASE}/events/${event.id}`,
+    detailHref,
+    statuses: GUEST_STATUSES,
+    colorOptions: COLOR_TAGS.map((value) => ({ value, label: value })),
+    hasCustomFields: customFields.length > 0,
+    customFields: customFields.map((field) => ({ key: field.key, label: field.label, selected: field.key === selectedCustomField?.key })),
+    selectedCustomFieldKey: selectedCustomField?.key ?? '',
+    guests,
+    hasGuests: guests.length > 0,
   }, jsonOnly);
 }
 
@@ -276,14 +337,13 @@ async function handleKioskAdmin(
   if (sub === 'search') return kioskSearch(cms, views, event, url, jsonOnly);
   if (sub === 'settings') return kioskView(views, `Settings — ${event.name}`, 'kiosk-settings', {
     eventName: event.name,
-    backHref: `${KIOSK_BASE}/${event.id}/scan`,
-    searchHref: `${KIOSK_BASE}/${event.id}/search`,
+    backHref: `${ADMIN_BASE}/events/${event.id}`,
   }, jsonOnly);
   if (sub === 'adhoc-guest') {
     if (!access.canCheckIn) return forbidden();
     return kioskAdhocGuest(cms, views, event, request, jsonOnly);
   }
-  if (sub === 'guests') return kioskGuest(cms, views, event, segments.slice(2), request, jsonOnly, access);
+  if (sub === 'guests') return kioskGuest(cms, views, event, segments.slice(2), url, request, jsonOnly, access);
 
   return notFoundView(views, 'Page not found.', jsonOnly);
 }
@@ -419,7 +479,7 @@ async function kioskAdhocGuest(cms: CmsClient, views: Fetcher, event: CmsPage, r
   return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
 }
 
-async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: string[], request: Request, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: string[], url: URL, request: Request, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
   const guestId = pageId(rest[0]);
   if (!guestId) return notFoundView(views, 'Guest not found.', jsonOnly);
 
@@ -434,16 +494,17 @@ async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: 
   }
 
   const action = rest[1];
+  const returnTo = safeAdminReturn(url.searchParams.get('return_to'));
 
   if (action === 'badge') return renderBadge(cms, event, guest);
 
   if (action && request.method === 'POST') {
     if (!access.canCheckIn) return forbidden();
     guest = await performGuestAction(cms, guest, event, action, request);
-    return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}`);
+    return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ''}`);
   }
 
-  return renderKioskGuest(views, event, guest, jsonOnly, access);
+  return renderKioskGuest(cms, views, event, list, guest, jsonOnly, access, returnTo);
 }
 
 async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage, action: string, request: Request): Promise<CmsPage> {
@@ -487,7 +548,7 @@ async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage
   return guest;
 }
 
-async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, jsonOnly: boolean, access: CheckinAccess): Promise<Response> {
+async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, list: CmsPage, guest: CmsPage, jsonOnly: boolean, access: CheckinAccess, returnTo = ''): Promise<Response> {
   const cap = plusGuestsCap(guest);
   const plusGuests = Array.from({ length: cap }, (_, index) => ({
     index,
@@ -496,6 +557,10 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
   }));
   const sessions = checkinSessions(event).map((session) => ({ ...session, checkedIn: sessionCheckinCount(guest, session.id) > 0 }));
   const actionBase = `${KIOSK_BASE}/${event.id}/guests/${guest.id}`;
+  // Badge previews are additive to check-in; an unavailable labels endpoint
+  // must not prevent door staff from opening a guest record.
+  const labels = await eventLabels(cms, event.id).catch(() => []);
+  const tokens = guestTokens(guest, list, event);
 
   return kioskView(views, guest.name, 'kiosk-guest', {
     eventId: event.id,
@@ -518,8 +583,10 @@ async function renderKioskGuest(views: Fetcher, event: CmsPage, guest: CmsPage, 
     hasRfid: eventRfidEnabled(event),
     rfid: attr(guest.lect, 'barcode'),
     actionBase,
-    backHref: `${KIOSK_BASE}/${event.id}/scan`,
-    badgeHref: `${actionBase}/badge`,
+    backHref: returnTo || `${KIOSK_BASE}/${event.id}/scan`,
+    labels: labels.map((label) => ({ name: label.name, design: labelDesign(label) })),
+    hasLabels: labels.length > 0,
+    labelTokens: JSON.stringify(tokens),
     settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
   }, jsonOnly);
 }

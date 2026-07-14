@@ -91,16 +91,25 @@ export function sessionCheckinCount(guest: CmsPage, sessionId: string): number {
   }).length;
 }
 
-/** Appends one check-in entry and persists the guest. */
+/**
+ * Appends one active check-in and its immutable activity-log entry. The guest
+ * page combines `response` and `checkin` entries into its Activity view; the
+ * former must retain the historical event when the latter is later undone.
+ */
 export async function recordCheckin(cms: CmsClient, guest: CmsPage, message: string): Promise<CmsPage> {
   const entry: CheckinRecord = { status: 'checked-in', date: new Date().toISOString(), message };
-  return cms.update(guest.id, { lect: { checkin: [...checkins(guest.lect), entry] } });
+  return cms.update(guest.id, {
+    lect: {
+      checkin: [...checkins(guest.lect), entry],
+      response: [...activityEntries(guest), entry],
+    },
+  });
 }
 
 /**
- * Removes the most recent check-in entry matching `predicate` (mirrors the
- * legacy app's per-kind undo, e.g. "undo last main attendee check-in"). A
- * no-op (guest returned unchanged, `removed: false`) if nothing matches.
+ * Removes the most recent active check-in matching `predicate` and adds a
+ * corresponding immutable activity entry. A no-op (guest returned unchanged,
+ * `removed: false`) if nothing matches.
  */
 export async function undoCheckin(cms: CmsClient, guest: CmsPage, predicate: (parsed: ParsedCheckin) => boolean): Promise<{ guest: CmsPage; removed: boolean }> {
   const existing = checkins(guest.lect);
@@ -114,8 +123,32 @@ export async function undoCheckin(cms: CmsClient, guest: CmsPage, predicate: (pa
   if (removeAt === -1) return { guest, removed: false };
 
   const next = [...existing.slice(0, removeAt), ...existing.slice(removeAt + 1)];
-  const updated = await cms.update(guest.id, { lect: { checkin: next } });
+  const undone = parseCheckinEntry(String(existing[removeAt].message ?? ''));
+  const updated = await cms.update(guest.id, {
+    lect: {
+      checkin: next,
+      response: [...activityEntries(guest), undoActivity(undone)],
+    },
+  });
   return { guest: updated, removed: true };
+}
+
+/** Excludes the empty row seeded by the response blueprint. */
+function activityEntries(guest: CmsPage): Array<Record<string, unknown>> {
+  return items(guest.lect, 'response').filter((entry) =>
+    ['status', 'date', 'message'].some((key) => String(entry[key] ?? '').trim() !== ''),
+  );
+}
+
+function undoActivity(checkin: ParsedCheckin): CheckinRecord {
+  const date = new Date().toISOString();
+  if (checkin.kind === 'plus') {
+    return { status: 'undo-plus-guest', date, message: `undid plus guest ${checkin.index + 1} check-in from kiosk` };
+  }
+  if (checkin.kind === 'session') {
+    return { status: 'undo-session-check-in', date, message: `undid session "${checkin.sessionName}" check-in from kiosk` };
+  }
+  return { status: 'undo-main-attendee', date, message: 'undid main attendee check-in from kiosk' };
 }
 
 /** Clears every check-in entry for a guest (legacy "undo all"). */

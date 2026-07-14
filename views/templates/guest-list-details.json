@@ -1,0 +1,6 @@
+{
+  "sections": {
+    "main": { "type": "guest-list-details" }
+  },
+  "order": ["main"]
+}

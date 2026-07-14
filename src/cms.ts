@@ -76,6 +76,23 @@ export class CmsClient extends BaseCmsClient {
     if (!response.ok) throw new CmsApiError(response.status, await cmsErrorCode(response), 'GET', path);
     return response.json() as Promise<{ pages: CmsPage[]; total: number }>;
   }
+
+  /** List pages annotated with the CMS's current live/published state. */
+  async listWithLiveStatus(
+    pageType: string,
+    opts: { parentId?: number; limit?: number } = {},
+  ): Promise<{ pages: Array<CmsPage & { isPublished?: boolean }>; total: number }> {
+    const params = new URLSearchParams({ page_type: pageType, include_live_status: '1' });
+    if (opts.parentId != null) params.set('page_id', String(opts.parentId));
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    const path = `/pages?${params.toString()}`;
+    const response = await globalThis.fetch(`${this.cmsUrl}/__cms${path}`, {
+      method: 'GET',
+      headers: { 'x-plugin-secret': this.pluginSecret, 'x-plugin-id': PLUGIN_ID },
+    });
+    if (!response.ok) throw new CmsApiError(response.status, await cmsErrorCode(response), 'GET', path);
+    return response.json() as Promise<{ pages: Array<CmsPage & { isPublished?: boolean }>; total: number }>;
+  }
 }
 
 async function cmsErrorCode(response: Response): Promise<string> {
