@@ -3,6 +3,10 @@
     <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref | escape }}">← Events</a>
     <h1 class="text-2xl font-bold text-gray-900">{{ eventName | escape }}</h1>
   </div>
+  <a class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="View all guests" aria-label="View all guests" href="{{ allGuestsHref | escape }}">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg>
+    <span class="hidden lg:inline">View all guests</span>
+  </a>
 </div>
 
 <!-- Quick navigation -->
@@ -84,15 +88,15 @@
 <!-- Check in an unlisted (walk-in) guest -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4 sticky bottom-0 z-10 drop-shadow-lg" data-walkin-panel data-storage-key="checkin:event-dashboard:walkin-collapsed:{{ eventId | escape }}">
   <div class="flex items-start justify-between gap-4">
-    <button type="button" class="text-left text-lg font-bold text-gray-900 hover:text-indigo-700" data-walkin-heading-toggle aria-expanded="true" aria-controls="walkinPanelBody">Check in unlisted guest</button>
-    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="true" aria-controls="walkinPanelBody" title="Collapse panel" aria-label="Collapse panel">
+    <button type="button" class="text-left text-lg font-bold text-gray-900 hover:text-indigo-700" data-walkin-heading-toggle aria-expanded="false" aria-controls="walkinPanelBody">Check in unlisted guest</button>
+    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="false" aria-controls="walkinPanelBody" title="Expand panel" aria-label="Expand panel">
       <svg data-walkin-toggle-icon class="h-4 w-4 transition-transform" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span data-walkin-toggle-label class="hidden sm:inline">Collapse</span>
+      <span data-walkin-toggle-label class="hidden sm:inline">Expand</span>
     </button>
   </div>
-  <div id="walkinPanelBody" data-walkin-panel-body class="mt-3">
+  <div id="walkinPanelBody" data-walkin-panel-body class="hidden mt-3">
     <p class="text-sm text-gray-500 mb-3">Adds a walk-in to the event's adhoc list and checks them in.</p>
     <form method="post" action="{{ walkinHref | escape }}" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <input type="text" name="name" required autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Full name *">

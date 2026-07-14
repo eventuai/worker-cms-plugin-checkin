@@ -59,9 +59,10 @@ function selectHasOption(select, value) {
 
 function readPanelState(storageKey) {
   try {
-    return window.localStorage.getItem(storageKey) === '1';
+    const savedState = window.localStorage.getItem(storageKey);
+    return savedState === null ? true : savedState === '1';
   } catch (error) {
-    return false;
+    return true;
   }
 }
 

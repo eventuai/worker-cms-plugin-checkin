@@ -2,7 +2,7 @@
 // full CMS login manage check-in from here; the passcode-lite kiosk (public.ts)
 // is the door-side surface that doesn't need one.
 
-import { adminView, notFoundView, redirect, type CmsPage } from '@lionrockjs/worker-cms-plugin';
+import { adminView, compareByWeightThenName, notFoundView, redirect, type CmsPage } from '@lionrockjs/worker-cms-plugin';
 import { attr, checkins, CmsClient, computeGuestListSummary, emptyGuestListSummary, isAdhocGuestList, listByEvent, pointer, PLUGIN_ID } from './cms';
 import {
   checkinSessions,
@@ -84,6 +84,7 @@ export async function handleCheckinAdmin(
 async function dashboard(cms: CmsClient, views: Fetcher, jsonOnly: boolean): Promise<Response> {
   const { pages: events } = await cms.list('event', { limit: 500 });
   const activeEvents = events.filter((event) => isActiveEvent(event));
+  if (activeEvents.length === 1) return redirect(`${ADMIN_BASE}/events/${activeEvents[0].id}`);
   return adminView(views, 'Check-in', 'dashboard', {
     events: activeEvents.map((event) => ({
       id: event.id,
@@ -129,7 +130,8 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
   const event = await cms.get(eventId);
   if (event.page_type !== 'event') return notFoundView(views, 'Event not found.', jsonOnly);
 
-  const lists = await listByEvent(cms, 'mail_list', eventId);
+  // Match cms-plugin-events' admin-controlled list order exactly.
+  const lists = (await listByEvent(cms, 'mail_list', eventId)).sort(compareByWeightThenName);
   const listSummaries = await Promise.all(
     lists.map(async (list) => {
       const { pages: guests } = await cms.list('guest', { pointer: { key: 'mail_list', value: list.id }, limit: 500 });
@@ -171,6 +173,7 @@ async function eventDashboard(cms: CmsClient, views: Fetcher, eventId: number, j
     kioskTitle: attr(event.lect, 'kiosk_title') || event.name,
     canCheckIn: access.canCheckIn,
     launchKioskHref: `${kioskBase}/scan`,
+    allGuestsHref: `/admin/plugins/events/events/${event.id}/all-guests`,
     // Bottom nav + top search targets.
     dashboardHref: `${ADMIN_BASE}/dashboard`,
     scanHref: `${kioskBase}/scan`,
@@ -244,6 +247,8 @@ async function guestListDetails(cms: CmsClient, views: Fetcher, eventId: number,
     listName: list.name,
     backHref: `${ADMIN_BASE}/events/${event.id}`,
     detailHref,
+    scanHref: `${KIOSK_BASE}/${event.id}/scan`,
+    settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
     statuses: GUEST_STATUSES,
     colorOptions: COLOR_TAGS.map((value) => ({ value, label: value })),
     hasCustomFields: customFields.length > 0,

@@ -566,8 +566,9 @@ async function refreshPrinters(button) {
     }
 }
 
-// Add event listeners for the WebUSB buttons
-document.addEventListener('DOMContentLoaded', function() {
+// The CMS admin shell may inject this script after DOMContentLoaded. Initialise
+// immediately in that case so the settings controls can persist their values.
+function initPrinterPage() {
     // Initialize printer settings
     initializePrinterSettings();
     
@@ -593,4 +594,10 @@ document.addEventListener('DOMContentLoaded', function() {
             await refreshPrinters(refreshPrintersButton);
         });
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPrinterPage);
+} else {
+    initPrinterPage();
+}

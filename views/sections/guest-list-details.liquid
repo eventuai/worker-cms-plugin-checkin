@@ -4,6 +4,20 @@
     <h1 class="text-2xl font-bold text-gray-900">{{ listName | escape }}</h1>
     <p class="mt-1 text-sm text-gray-500">{{ guests.size }} guest{% unless guests.size == 1 %}s{% endunless %}</p>
   </div>
+  <div class="flex shrink-0 items-center gap-2">
+    <a href="{{ scanHref | escape }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Scan" aria-label="Scan">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span class="hidden lg:inline">Scan</span>
+    </a>
+    <a href="{{ settingsHref | escape }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Settings" aria-label="Settings">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4M10 8h4M18 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span class="hidden lg:inline">Settings</span>
+    </a>
+  </div>
 </div>
 
 <div class="mb-4 flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

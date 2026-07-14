@@ -369,22 +369,40 @@ function writeStringSetting(key, value) {
 // ── Badge printing (encoder.js + printer.js) ────────────────────────────
 
 function initBadgePrint() {
-  const button = document.getElementById('printBadgeBtn');
+  const button = document.querySelector('[data-print-badges]');
   if (!button) return;
 
   button.addEventListener('click', async () => {
-    const badgeHref = button.dataset.badgeHref;
-    const widthMm = Number.parseFloat(button.dataset.widthMm || '60');
-    const heightMm = Number.parseFloat(button.dataset.heightMm || '30');
+    const cards = Array.from(document.querySelectorAll('[data-label-card]'));
     const originalText = button.textContent;
     button.disabled = true;
-    button.textContent = 'Printing…';
     try {
-      await printBadge(badgeHref, widthMm, heightMm);
-      button.textContent = 'Sent to printer';
+      if (!cards.length) throw new Error('No labels are available');
+      const printCommands = [];
+      for (let index = 0; index < cards.length; index += 1) {
+        const card = cards[index];
+        const svgElement = card.querySelector('[data-label-preview] svg');
+        const designSource = card.querySelector('[data-label-design]');
+        let config = {};
+        try { config = JSON.parse(designSource?.value || '{}').labelConfig || {}; } catch { /* use defaults */ }
+        const widthMm = Number.parseFloat(String(config.width || '60'));
+        const heightMm = Number.parseFloat(String(config.height || '30'));
+        if (!svgElement) throw new Error('Badge preview is not ready');
+        button.textContent = `Preparing ${index + 1} of ${cards.length}…`;
+        printCommands.push(await encodeBadge(svgElement, widthMm, heightMm));
+      }
+      const bitmapOutput = document.getElementById('bitmapOutput');
+      if (!bitmapOutput) throw new Error('Print output is unavailable');
+      // Each encoded label ends with 0C (form feed). Concatenating the full
+      // command streams preserves both page boundaries while the transport
+      // sends them to the printer server/USB device as one job.
+      bitmapOutput.value = printCommands.join('\n');
+      button.textContent = 'Sending to printer…';
+      await connectAndPrintWithBitmap(bitmapOutput);
+      button.textContent = `Sent ${cards.length} label${cards.length === 1 ? '' : 's'} to printer`;
     } catch (error) {
       console.error('Badge print failed:', error);
-      alert('Could not print badge: ' + error.message);
+      alert('Could not print labels: ' + error.message);
       button.textContent = originalText;
     } finally {
       setTimeout(() => {
@@ -395,12 +413,7 @@ function initBadgePrint() {
   });
 }
 
-async function printBadge(badgeHref, widthMm, heightMm) {
-  const response = await fetch(badgeHref);
-  if (!response.ok) throw new Error('Badge not available for this event');
-  const svgText = await response.text();
-
-  const svgElement = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
+async function encodeBadge(svgElement, widthMm, heightMm) {
   const viewBoxAttr = svgElement.getAttribute('viewBox');
   const dpi = 300;
   const pxPerMm = dpi / 25.4;
@@ -422,7 +435,5 @@ async function printBadge(badgeHref, widthMm, heightMm) {
     }
   });
 
-  const bitmapOutput = document.getElementById('bitmapOutput');
-  if (bitmapOutput) bitmapOutput.value = encoder.encodeBitmap(canvas);
-  await connectAndPrintWithBitmap(bitmapOutput);
+  return encoder.encodeBitmap(canvas);
 }

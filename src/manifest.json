@@ -48,6 +48,10 @@
     {
       "path": "/assets/js/printer.js",
       "label": "Badge printer"
+    },
+    {
+      "path": "/assets/js/kiosk-labels.js",
+      "label": "Published event-label preview"
     }
   ],
   "contentTypes": {

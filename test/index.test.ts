@@ -69,6 +69,7 @@ describe('plugin contract', () => {
       id: 'checkin',
       nav: [{ label: 'Check-in', href: 'dashboard', roles: ['admin', 'editor', 'moderator', 'event-helper'] }],
     });
+    expect((manifest as { assets?: Array<{ path?: string }> }).assets).toContainEqual(expect.objectContaining({ path: '/assets/js/kiosk-labels.js' }));
   });
 
   it('requires the shared secret for admin routes', async () => {
@@ -102,12 +103,33 @@ describe('plugin contract', () => {
     expect(response.headers.get('x-cms-chrome')).toBe('1');
     const html = await renderedText(response);
     expect(html).toContain('Launch Party');
-    expect(html).toContain('Welcome!');
     expect(html).toContain('Ongoing Party');
-    expect(html).toContain('Still open');
     expect(html).not.toContain('Past Party');
     expect(html).not.toContain('Future Party');
     expect(html).not.toContain('Undated Party');
+  });
+
+  it('redirects the dashboard straight to its sole active event', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-03T04:00:00Z'));
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'event') {
+        return Response.json({
+          pages: [
+            { id: 7, name: 'Launch Party', start: '2026-07-03 09:00 +0800', end: '2026-07-03 18:00 +0800', timezone: '+0800', lect: {} },
+            { id: 8, name: 'Past Party', start: '2026-07-01', end: '2026-07-02', timezone: '+0800', lect: {} },
+          ],
+          total: 2,
+        });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(request('/__plugin/admin/dashboard', { headers: { 'x-plugin-secret': 'shared-secret' } }), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/admin/plugins/checkin/events/7');
   });
 
   it('checks a guest in from the admin search results and PUTs the checkin block', async () => {
@@ -196,6 +218,8 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(kioskScript).toContain('checkin:kiosk:scanner-camera');
     expect(kioskScript).toContain('readStringSetting(KIOSK_CAMERA_STORAGE_KEY)');
     expect(kioskScript).toContain('writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId)');
+    expect(kioskScript).toContain("bitmapOutput.value = printCommands.join('\\n')");
+    expect(kioskScript.match(/connectAndPrintWithBitmap\(bitmapOutput\)/g)).toHaveLength(1);
   });
 
   it('renders the kiosk settings page with the same left-aligned wrapper', async () => {
@@ -332,6 +356,9 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('Name badge');
     expect(html).toContain('Staff badge');
     expect(html).not.toContain('Unpublished badge');
+    expect(html.match(/data-print-badges/g)).toHaveLength(1);
+    expect(html).toContain('/admin/plugins/checkin/assets/js/encoder.js');
+    expect(html).toContain('/admin/plugins/checkin/assets/js/printer.js');
     expect(html).toContain('/admin/plugins/checkin/assets/js/kiosk-labels.js');
   });
 
@@ -505,14 +532,44 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('data-walkin-heading-toggle');
     expect(html).toContain('data-walkin-panel');
     expect(html).toContain('checkin:event-dashboard:walkin-collapsed:7');
+    expect(html).toContain('data-walkin-panel-body class="hidden mt-3"');
+    expect(html).toContain('data-walkin-toggle aria-expanded="false"');
     expect(html).toContain('/admin/plugins/checkin/assets/js/event-dashboard.js');
     expect(html.match(/href="\/admin\/plugins\/checkin\/dashboard"/g)).toHaveLength(1); // top back-to-events link only
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/scan');     // scan nav
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/settings'); // settings nav
+    expect(html).toContain('href="/admin/plugins/events/events/7/all-guests"');
     expect(html).toContain('/admin/plugins/checkin/events/7/lists/12');
     expect(html).not.toContain('Search guests');
     // 1 guest, 1 checked in → 100%
     expect(html).toContain('100%');
+  });
+
+  it('orders guest lists by weight, matching the Events dashboard', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      if (url.pathname === '/__cms/pages/7') {
+        return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'mail_list') {
+        // Deliberately reversed API order: the lower-weight list belongs first.
+        return Response.json({ pages: [
+          { id: 12, page_type: 'mail_list', name: 'Later list', weight: 20, lect: { _pointers: { event: '7' } } },
+          { id: 13, page_type: 'mail_list', name: 'First list', weight: 1, lect: { _pointers: { event: '7' } } },
+        ], total: 2 });
+      }
+      if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'guest') {
+        return Response.json({ pages: [], total: 0 });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+
+    const response = await plugin.fetch(
+      request('/__plugin/admin/events/7', { headers: { 'x-plugin-secret': 'shared-secret' } }),
+      env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }),
+    );
+    const html = await renderedText(response);
+    expect(html.indexOf('First list')).toBeLessThan(html.indexOf('Later list'));
   });
 
   it('renders an event-scoped guest-list detail page with every guest', async () => {
@@ -531,6 +588,8 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('All color tags');
     expect(html).toContain('data-filter-status="Not sent"');
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/guests/34?return_to=%2Fadmin%2Fplugins%2Fcheckin%2Fevents%2F7%2Flists%2F12');
+    expect(html).toContain('href="/admin/plugins/checkin/kiosk/7/scan"');
+    expect(html).toContain('href="/admin/plugins/checkin/kiosk/7/settings"');
     expect(html).toContain('Checked in');
   });
 
