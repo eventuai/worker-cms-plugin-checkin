@@ -1,7 +1,7 @@
 name = "worker-cms-plugin-checkin"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat","global_fetch_strictly_public"]
 
 [assets]
 directory = "./views"
@@ -36,4 +36,4 @@ CMS_URL = "https://cms.eventuai.com"
 #     '{"secret":"<32-byte hex>","vars":{"EVENTS_PLUGIN_SECRET":"<events signKey>"}}'
 [[kv_namespaces]]
 binding = "TENANTS"
-id = "4df7d81ddafc4b6394a7164d9cfa4c63"
+id = "eb6dcb91c09b405fa05eb9490d343045"
