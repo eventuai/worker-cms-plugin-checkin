@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { blake3 } from '@noble/hashes/blake3.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { signPayload } from '../src/crypto';
-import { resolveCheckinCode, resolveCheckinLink } from '../src/qr-links';
+import { compactCheckinCode, resolveCheckinCode, resolveCheckinLink } from '../src/qr-links';
 
 const SECRET = 'events-plugin-secret';
 
@@ -57,5 +57,28 @@ describe('resolveCheckinLink', () => {
 
   it('rejects a compact EAI payload with an invalid checksum', async () => {
     expect(await resolveCheckinCode('EAI34:p:M:000000', undefined)).toBeNull();
+  });
+
+  it('mints a compact code that resolves back to the same guest', async () => {
+    const listId = 22035211676826;
+    const guestId = 22035933209321;
+    const code = compactCheckinCode(listId, guestId);
+
+    expect(code).toMatch(/^EAI[0-9a-v]+:[0-9a-v]+:M:[0-9a-f]{6}$/);
+    expect(await resolveCheckinCode(code, undefined)).toEqual({ kind: 'main', listId, guestId });
+  });
+
+  it('supports guest ids lower than the list id', async () => {
+    const listId = 22035274339672;
+    const guestId = 1780933209321;
+    const code = compactCheckinCode(listId, guestId);
+
+    expect(code).toMatch(/^EAI[0-9-a-v]+:-[0-9-a-v]+:M:[0-9a-f]{6}$/);
+    expect(await resolveCheckinCode(code, undefined)).toEqual({ kind: 'main', listId, guestId });
+  });
+
+  it('refuses to mint a compact code outside the legacy id scheme', () => {
+    expect(() => compactCheckinCode(0, 34)).toThrow();
+    expect(() => compactCheckinCode(12, 0)).toThrow();
   });
 });

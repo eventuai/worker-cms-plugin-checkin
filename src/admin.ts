@@ -583,11 +583,16 @@ async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: 
   const action = rest[1];
   const returnTo = safeAdminReturn(url.searchParams.get('return_to'));
 
-  if (action === 'badge') return renderBadge(cms, event, guest);
+  if (action === 'badge') return renderBadge(cms, event, list, guest);
 
   if (action && request.method === 'POST') {
     if (!access.canCheckIn) return forbidden();
+    const previousCheckinCount = checkins(guest.lect).length;
     guest = await performGuestAction(cms, guest, event, action, request);
+    if (jsonOnly) {
+      const autoPrint = action.startsWith('checkin-') && checkins(guest.lect).length > previousCheckinCount;
+      return renderKioskGuest(cms, views, event, list, guest, true, access, returnTo, autoPrint);
+    }
     return redirect(`${KIOSK_BASE}/${event.id}/guests/${guest.id}${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ''}`);
   }
 
@@ -641,7 +646,7 @@ async function performGuestAction(cms: CmsClient, guest: CmsPage, event: CmsPage
   return guest;
 }
 
-async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, list: CmsPage, guest: CmsPage, jsonOnly: boolean, access: CheckinAccess, returnTo = ''): Promise<Response> {
+async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, list: CmsPage, guest: CmsPage, jsonOnly: boolean, access: CheckinAccess, returnTo = '', autoPrint = false): Promise<Response> {
   const cap = plusGuestsCap(guest);
   const plusGuests = Array.from({ length: cap }, (_, index) => ({
     index,
@@ -667,6 +672,8 @@ async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, 
     picture: attr(guest.lect, 'picture'),
     organization: attr(guest.lect, 'organization'),
     email: attr(guest.lect, 'email'),
+    listName: list.name,
+    guestListHref: `${ADMIN_BASE}/events/${event.id}/lists/${list.id}`,
     canCheckIn: access.canCheckIn,
     mainCheckedIn: mainCheckinCount(guest) > 0,
     mainAtCap: mainCheckinCount(guest) >= maxMainCheckins(guest),
@@ -684,6 +691,7 @@ async function renderKioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, 
     hasLabels: labels.length > 0,
     labelTokens: JSON.stringify(tokens),
     settingsHref: `${KIOSK_BASE}/${event.id}/settings`,
+    autoPrint,
   }, jsonOnly);
 }
 
@@ -692,11 +700,11 @@ function eventRfidEnabled(event: CmsPage): boolean {
   return attr(event.lect, 'rfid').trim().toLowerCase() === 'yes';
 }
 
-async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Promise<Response> {
+async function renderBadge(cms: CmsClient, event: CmsPage, list: CmsPage, guest: CmsPage): Promise<Response> {
   const labels = await eventLabels(cms, event.id);
   if (!labels.length) return new Response('No badge template configured for this event yet.', { status: 404 });
   const frame = labelFrame(labels[0]);
-  const svg = renderLabel(frame.svg, guestTokens(guest));
+  const svg = renderLabel(frame.svg, guestTokens(guest, list, event));
   return new Response(svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'no-store' } });
 }
 

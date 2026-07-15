@@ -7,6 +7,7 @@
 // crypto.ts).
 
 import { attr, localized, type CmsClient, type CmsPage } from './cms';
+import { compactCheckinCode } from './qr-links';
 
 export interface LabelFrame {
   width: string;
@@ -54,6 +55,16 @@ export function guestTokens(guest: CmsPage, list?: CmsPage, event?: CmsPage): Re
   if (list) {
     tokens.mail_list_id = String(list.id);
     tokens.mail_list_id_short = list.id.toString(36);
+    try {
+      // Label designs' QR elements default to [@checkin_qrcode] (see the
+      // Events plugin's label editor); the aliases match its guestLabelTokens.
+      const code = compactCheckinCode(list.id, guest.id);
+      tokens.checkin_qrcode = code;
+      tokens.checkin_qrcode_text = code;
+      tokens.checkin_qr_code_text = code;
+    } catch {
+      // Guests outside the legacy id scheme simply get no QR token.
+    }
   }
   if (event) {
     tokens.event_id = String(event.id);

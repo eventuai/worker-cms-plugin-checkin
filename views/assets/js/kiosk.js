@@ -28,6 +28,7 @@ var KIOSK_CAMERA_STORAGE_KEY = 'checkin:kiosk:scanner-camera';
 async function initKiosk() {
   initScanner();
   initBadgePrint();
+  initGuestActions();
   initAdhocToggle();
 }
 
@@ -372,54 +373,130 @@ function initBadgePrint() {
   const button = document.querySelector('[data-print-badges]');
   if (!button) return;
 
-  button.addEventListener('click', async () => {
-    const cards = Array.from(document.querySelectorAll('[data-label-card]'));
-    const originalText = button.textContent;
-    button.disabled = true;
-    try {
-      if (!cards.length) throw new Error('No labels are available');
-      const printCommands = [];
-      for (let index = 0; index < cards.length; index += 1) {
-        const card = cards[index];
-        const svgElement = card.querySelector('[data-label-preview] svg');
-        const designSource = card.querySelector('[data-label-design]');
-        let config = {};
-        try { config = JSON.parse(designSource?.value || '{}').labelConfig || {}; } catch { /* use defaults */ }
-        const widthMm = Number.parseFloat(String(config.width || '60'));
-        const heightMm = Number.parseFloat(String(config.height || '30'));
-        if (!svgElement) throw new Error('Badge preview is not ready');
-        button.textContent = `Preparing ${index + 1} of ${cards.length}…`;
-        printCommands.push(await encodeBadge(svgElement, widthMm, heightMm));
-      }
-      const bitmapOutput = document.getElementById('bitmapOutput');
-      if (!bitmapOutput) throw new Error('Print output is unavailable');
-      // Each encoded label ends with 0C (form feed). Concatenating the full
-      // command streams preserves both page boundaries while the transport
-      // sends them to the printer server/USB device as one job.
-      bitmapOutput.value = printCommands.join('\n');
-      button.textContent = 'Sending to printer…';
-      await connectAndPrintWithBitmap(bitmapOutput);
-      button.textContent = `Sent ${cards.length} label${cards.length === 1 ? '' : 's'} to printer`;
-    } catch (error) {
-      console.error('Badge print failed:', error);
-      alert('Could not print labels: ' + error.message);
-      button.textContent = originalText;
-    } finally {
-      setTimeout(() => {
-        button.disabled = false;
-        button.textContent = originalText;
-      }, 2000);
+  button.addEventListener('click', () => printBadges(button));
+}
+
+async function printBadges(button) {
+  const root = button.closest('[data-kiosk-guest]') || document;
+  const cards = Array.from(root.querySelectorAll('[data-label-card]'));
+  const originalText = button.textContent;
+  button.disabled = true;
+  try {
+    if (!cards.length) throw new Error('No labels are available');
+    const printCommands = [];
+    for (let index = 0; index < cards.length; index += 1) {
+      const card = cards[index];
+      const svgElement = card.querySelector('[data-label-preview] svg');
+      const designSource = card.querySelector('[data-label-design]');
+      let config = {};
+      try { config = JSON.parse(designSource?.value || '{}').labelConfig || {}; } catch { /* use defaults */ }
+      const widthMm = Number.parseFloat(String(config.width || '60'));
+      const heightMm = Number.parseFloat(String(config.height || '30'));
+      if (!svgElement) throw new Error('Badge preview is not ready');
+      // QR codes render once qrcode.min.js finishes loading (kiosk-labels.js
+      // marks them pending) — don't print a badge whose QR is still missing.
+      if (svgElement.querySelector('[data-qr-pending]')) throw new Error('Badge preview is not ready');
+      button.textContent = `Preparing ${index + 1} of ${cards.length}…`;
+      printCommands.push(await encodeBadge(svgElement, widthMm, heightMm));
     }
+    const bitmapOutput = document.getElementById('bitmapOutput');
+    if (!bitmapOutput) throw new Error('Print output is unavailable');
+    // Each encoded label ends with 0C (form feed). Concatenating the full
+    // command streams preserves both page boundaries while the transport
+    // sends them to the printer server/USB device as one job.
+    bitmapOutput.value = printCommands.join('\n');
+    button.textContent = 'Sending to printer…';
+    await connectAndPrintWithBitmap(bitmapOutput);
+    button.textContent = `Sent ${cards.length} label${cards.length === 1 ? '' : 's'} to printer`;
+  } catch (error) {
+    console.error('Badge print failed:', error);
+    alert('Could not print labels: ' + error.message);
+    button.textContent = originalText;
+  } finally {
+    setTimeout(() => {
+      button.disabled = false;
+      button.textContent = originalText;
+    }, 2000);
+  }
+}
+
+async function initGuestActions() {
+  const root = document.querySelector('[data-kiosk-guest]');
+  if (!root) return;
+
+  root.querySelectorAll('form[data-kiosk-action]').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const confirmation = form.getAttribute('data-confirm');
+      if (confirmation && !window.confirm(confirmation)) return;
+
+      const button = form.querySelector('button[type="submit"]');
+      const originalText = button?.textContent || '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Saving…';
+      }
+
+      try {
+        const actionUrl = new URL(form.action, window.location.origin);
+        actionUrl.searchParams.set('json', '1');
+        const response = await fetch(actionUrl, {
+          method: 'POST',
+          body: new FormData(form),
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'X-Requested-With': 'fetch' },
+        });
+        if (!response.ok) throw new Error(await response.text() || `Request failed (${response.status})`);
+        const payload = await response.json();
+        const nextRoot = await renderKioskGuestRoot(payload);
+        root.replaceWith(nextRoot);
+        if (typeof window.renderKioskLabels === 'function') window.renderKioskLabels(nextRoot);
+        initBadgePrint();
+        initGuestActions();
+        if (payload?.data?.autoPrint) {
+          const printButton = nextRoot.querySelector('[data-print-badges]');
+          if (printButton) await printBadges(printButton);
+        }
+      } catch (error) {
+        console.error('Kiosk guest action failed:', error);
+        alert('Could not update check-in: ' + error.message);
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
+    });
   });
+}
+
+async function renderKioskGuestRoot(payload) {
+  if (!payload || payload.template !== 'kiosk-guest' || !payload.data) {
+    throw new Error('The refreshed guest view was invalid');
+  }
+  if (!window.liquidjs?.Liquid) throw new Error('The page renderer is unavailable');
+  const response = await fetch('/admin/plugins/checkin/views/sections/kiosk-guest.liquid', {
+    credentials: 'same-origin',
+    headers: { Accept: 'text/plain' },
+  });
+  if (!response.ok) throw new Error('The guest view could not be refreshed');
+  const engine = new window.liquidjs.Liquid();
+  const html = await engine.parseAndRender(await response.text(), payload.data);
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  const root = template.content.querySelector('[data-kiosk-guest]');
+  if (!root) throw new Error('The refreshed guest view was empty');
+  return root;
 }
 
 async function encodeBadge(svgElement, widthMm, heightMm) {
   const viewBoxAttr = svgElement.getAttribute('viewBox');
-  const dpi = 300;
-  const pxPerMm = dpi / 25.4;
-  const width = Math.round(widthMm * pxPerMm);
-  const height = Math.round(heightMm * pxPerMm);
-  const viewBox = viewBoxAttr ? viewBoxAttr.split(/\s+/).map(Number) : [0, 0, width, height];
+  const viewBox = viewBoxAttr ? viewBoxAttr.split(/\s+/).map(Number) : [0, 0, 0, 0];
+  const svgWidth = Number.parseFloat(svgElement.getAttribute('width') || '') || viewBox[2] || 0;
+  const svgHeight = Number.parseFloat(svgElement.getAttribute('height') || '') || viewBox[3] || 0;
+  // Match Events label printing: the SVG is already margin-adjusted at
+  // 150 DPI, so rasterize it at 2x instead of rebuilding physical dimensions.
+  const width = Math.round(svgWidth * 2);
+  const height = Math.round(svgHeight * 2);
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -429,7 +506,18 @@ async function encodeBadge(svgElement, widthMm, heightMm) {
   const encoder = new LabelEncoder({ width: widthMm, height: heightMm });
   await new Promise((resolve, reject) => {
     try {
-      encoder.svgElementToCanvas(svgElement, ctx, width, height, viewBox[2] || width, viewBox[3] || height, true, 128, resolve, 'floyd-steinberg');
+      encoder.svgElementToCanvas(
+        svgElement,
+        ctx,
+        width,
+        height,
+        svgWidth,
+        svgHeight,
+        true,
+        128,
+        (error) => error ? reject(error) : resolve(),
+        'threshold',
+      );
     } catch (error) {
       reject(error);
     }
