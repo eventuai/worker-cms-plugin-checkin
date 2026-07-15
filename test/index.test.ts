@@ -73,6 +73,14 @@ describe('plugin contract', () => {
     expect((manifest as { assets?: Array<{ path?: string }> }).assets).toContainEqual(expect.objectContaining({ path: '/assets/js/qrcode.min.js' }));
   });
 
+  it('serves a CSP-safe badge encoder that fails closed', async () => {
+    const response = await plugin.fetch(request('/assets/js/encoder.js'), env({ PLUGIN_SECRET: 'shared-secret' }));
+    expect(response.status).toBe(200);
+    const script = await response.text();
+    expect(script).toContain("'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)");
+    expect(script).toContain("callback(new Error('The badge SVG could not be rasterized'))");
+  });
+
   it('requires the shared secret for admin routes', async () => {
     const response = await plugin.fetch(request('/__plugin/admin/dashboard'), env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' }));
     expect(response.status).toBe(403);
@@ -221,6 +229,18 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(kioskScript).toContain('writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId)');
     expect(kioskScript).toContain("bitmapOutput.value = printCommands.join('\\n')");
     expect(kioskScript.match(/connectAndPrintWithBitmap\(bitmapOutput\)/g)).toHaveLength(1);
+    expect(kioskScript).toContain("actionUrl.searchParams.set('json', '1')");
+    expect(kioskScript).toContain('if (payload?.data?.autoPrint)');
+    expect(kioskScript).toContain('if (printButton) await printBadges(printButton)');
+    expect(kioskScript).toContain('const width = Math.round(svgWidth * 2)');
+    expect(kioskScript).toContain('const height = Math.round(svgHeight * 2)');
+    expect(kioskScript).toContain("        'threshold',");
+    expect(kioskScript).not.toContain("        'floyd-steinberg',");
+
+    const labelRendererScript = await readFile(fileURLToPath(new URL('../views/assets/js/kiosk-labels.js', import.meta.url).href), 'utf8');
+    expect(labelRendererScript).toContain('const printableMarginY = Math.floor(4 * PX_PER_MM)');
+    expect(labelRendererScript).toContain('const printableMarginL = Math.floor(3 * PX_PER_MM)');
+    expect(labelRendererScript).toContain('const printableMarginR = 2');
   });
 
   it('renders the kiosk settings page with the same left-aligned wrapper', async () => {
@@ -271,6 +291,42 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(updates).toHaveLength(1);
     expect(updates[0].lect.checkin[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
     expect(updates[0].lect.response[0]).toMatchObject({ status: 'checked-in', message: 'main attendee checked-in from kiosk' });
+  });
+
+  it('returns refreshed guest data for background actions and only prints after check-in', async () => {
+    let guestLect: Record<string, unknown> = {};
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url);
+      const method = init?.method ?? 'GET';
+      if (url.pathname === '/__cms/pages/7' && method === 'GET') return Response.json({ page: { id: 7, page_type: 'event', name: 'Launch Party', lect: {} } });
+      if (url.pathname === '/__cms/pages/12' && method === 'GET') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', lect: { _pointers: { event: '7' } } } });
+      if (url.pathname === '/__cms/pages/34' && method === 'GET') return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: guestLect } });
+      if (url.pathname === '/__cms/pages/34' && method === 'PUT') {
+        const body = JSON.parse(String(init?.body)) as { lect: Record<string, unknown> };
+        guestLect = body.lect;
+        return Response.json({ page: { id: 34, page_type: 'guest', name: 'Ada Lovelace', page_id: 12, lect: guestLect } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+    const testEnv = env({ CMS_URL: 'https://cms.test', PLUGIN_SECRET: 'shared-secret' });
+    const headers = { 'x-plugin-secret': 'shared-secret', 'content-type': 'application/x-www-form-urlencoded' };
+
+    const checkin = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/checkin-main?json=1', {
+      method: 'POST', headers, body: '',
+    }), testEnv);
+    const checkinPayload = await checkin.json() as { template: string; data: { mainCheckedIn: boolean; autoPrint: boolean } };
+
+    expect(checkin.status).toBe(200);
+    expect(checkinPayload.template).toBe('kiosk-guest');
+    expect(checkinPayload.data).toMatchObject({ mainCheckedIn: true, autoPrint: true });
+
+    const undo = await plugin.fetch(request('/__plugin/admin/kiosk/7/guests/34/undo-main?json=1', {
+      method: 'POST', headers, body: '',
+    }), testEnv);
+    const undoPayload = await undo.json() as { data: { mainCheckedIn: boolean; autoPrint: boolean } };
+
+    expect(undo.status).toBe(200);
+    expect(undoPayload.data).toMatchObject({ mainCheckedIn: false, autoPrint: false });
   });
 
   it('undoes a kiosk check-in while adding an immutable guest activity entry', async () => {
@@ -407,14 +463,16 @@ describe('kiosk (login-gated admin surface)', () => {
     );
     const html = await renderedText(response);
 
-    expect(html).toContain('<div class="max-w-md">');
+    expect(html).toContain('<div class="max-w-md" data-kiosk-guest>');
     expect(html).toContain('&larr; Launch Party</a>');
     expect(html).not.toContain('&larr; Scan</a>');
     expect(html).not.toContain('>Search</a>');
     expect(html).not.toContain('RFID tag');
     expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/checkin-all-plus"');
+    expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/checkin-main" data-kiosk-action');
     expect(html).toContain('>Check in all</button>');
     expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/undo-all-plus"');
+    expect(html).toContain('action="/admin/plugins/checkin/kiosk/7/guests/34/undo-all-plus" data-kiosk-action');
     expect(html).toContain('>Undo all</button>');
     expect(html).toContain('Name badge');
     expect(html).toContain('Staff badge');
@@ -761,5 +819,6 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     );
     const html = await renderedText(response);
     expect(html).toContain('href="/admin/plugins/checkin/events/7/lists/12"');
+    expect(html).toContain('Guest list: <a class="font-medium text-indigo-600 hover:text-indigo-800" href="/admin/plugins/checkin/events/7/lists/12">VIP</a>');
   });
 });

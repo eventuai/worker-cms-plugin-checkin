@@ -6,8 +6,8 @@
   const PX_PER_MM = 150 / 25.4;
   const number = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
-  function tokens() {
-    const source = document.querySelector('[data-label-tokens]');
+  function tokens(root) {
+    const source = root.querySelector('[data-label-tokens]');
     try { return JSON.parse(source?.value || '{}'); } catch { return {}; }
   }
 
@@ -114,26 +114,36 @@
     });
   }
 
-  document.querySelectorAll('[data-label-design]').forEach((source) => {
-    let design; try { design = JSON.parse(source.value); } catch { return; }
-    const config = design?.labelConfig; if (!config) return;
-    const width = Math.max(1, Math.floor(number(config.width, 60) * PX_PER_MM));
-    const height = Math.max(1, Math.floor((number(config.height, 30) - 6) * PX_PER_MM));
-    const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('xmlns', SVG_NS); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height)); svg.style.maxWidth = '100%'; svg.style.height = 'auto';
-    const background = document.createElementNS(SVG_NS, 'rect'); background.setAttribute('width', String(width)); background.setAttribute('height', String(height)); background.setAttribute('fill', config.backgroundColor || '#fff'); if (number(config.borderRadius) > 0) background.setAttribute('rx', String(number(config.borderRadius))); svg.appendChild(background);
-    const values = tokens();
-    const elements = [
-      ...(design.textElements || []).map((item) => ({ type: 'text', item })),
-      ...(design.imageElements || []).map((item) => ({ type: 'image', item })),
-      ...(design.shapeElements || []).map((item) => ({ type: 'shape', item })),
-      ...(design.qrcodeElements || []).map((item) => ({ type: 'qr', item })),
-    ].sort((a, b) => number(a.item.zIndex) - number(b.item.zIndex));
-    elements.forEach(({ type, item }) => {
-      if (type === 'text') appendText(svg, item, values);
-      else if (type === 'image') appendImage(svg, item);
-      else if (type === 'shape') appendShape(svg, item);
-      else appendQr(svg, item, values);
+  function renderKioskLabels(root = document) {
+    root.querySelectorAll('[data-label-design]').forEach((source) => {
+      let design; try { design = JSON.parse(source.value); } catch { return; }
+      const config = design?.labelConfig; if (!config) return;
+      // Match the Events label editor's legacy printable geometry. The stored
+      // element coordinates were authored against this margin-adjusted SVG.
+      const printableMarginY = Math.floor(4 * PX_PER_MM);
+      const printableMarginL = Math.floor(3 * PX_PER_MM);
+      const printableMarginR = 2;
+      const width = Math.max(1, Math.floor(number(config.width, 60) * PX_PER_MM) - printableMarginL - printableMarginR);
+      const height = Math.max(1, Math.floor((number(config.height, 30) - 6) * PX_PER_MM) - printableMarginY);
+      const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('xmlns', SVG_NS); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height)); svg.style.maxWidth = '100%'; svg.style.height = 'auto';
+      const background = document.createElementNS(SVG_NS, 'rect'); background.setAttribute('width', String(width)); background.setAttribute('height', String(height)); background.setAttribute('fill', config.backgroundColor || '#fff'); if (number(config.borderRadius) > 0) background.setAttribute('rx', String(number(config.borderRadius))); svg.appendChild(background);
+      const values = tokens(root);
+      const elements = [
+        ...(design.textElements || []).map((item) => ({ type: 'text', item })),
+        ...(design.imageElements || []).map((item) => ({ type: 'image', item })),
+        ...(design.shapeElements || []).map((item) => ({ type: 'shape', item })),
+        ...(design.qrcodeElements || []).map((item) => ({ type: 'qr', item })),
+      ].sort((a, b) => number(a.item.zIndex) - number(b.item.zIndex));
+      elements.forEach(({ type, item }) => {
+        if (type === 'text') appendText(svg, item, values);
+        else if (type === 'image') appendImage(svg, item);
+        else if (type === 'shape') appendShape(svg, item);
+        else appendQr(svg, item, values);
+      });
+      source.parentElement?.querySelector('[data-label-preview]')?.replaceChildren(svg);
     });
-    source.parentElement?.querySelector('[data-label-preview]')?.appendChild(svg);
-  });
+  }
+
+  window.renderKioskLabels = renderKioskLabels;
+  renderKioskLabels();
 })();
