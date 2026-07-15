@@ -125,7 +125,7 @@
       const printableMarginR = 2;
       const width = Math.max(1, Math.floor(number(config.width, 60) * PX_PER_MM) - printableMarginL - printableMarginR);
       const height = Math.max(1, Math.floor((number(config.height, 30) - 6) * PX_PER_MM) - printableMarginY);
-      const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('xmlns', SVG_NS); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height)); svg.style.maxWidth = '100%'; svg.style.height = 'auto';
+      const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('xmlns', SVG_NS); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height)); svg.style.maxWidth = '100%'; svg.style.height = 'auto'; svg.style.display = 'block';
       const background = document.createElementNS(SVG_NS, 'rect'); background.setAttribute('width', String(width)); background.setAttribute('height', String(height)); background.setAttribute('fill', config.backgroundColor || '#fff'); if (number(config.borderRadius) > 0) background.setAttribute('rx', String(number(config.borderRadius))); svg.appendChild(background);
       const values = tokens(root);
       const elements = [
@@ -140,7 +140,14 @@
         else if (type === 'shape') appendShape(svg, item);
         else appendQr(svg, item, values);
       });
-      source.parentElement?.querySelector('[data-label-preview]')?.replaceChildren(svg);
+      // Match the editor's preview-only cut-area frame. The extra bottom
+      // whitespace represents the safe area consumed when the label is cut;
+      // it deliberately stays outside the SVG so it is not sent to print.
+      const frame = document.createElement('div');
+      frame.setAttribute('data-label-safe-area', '');
+      frame.style.cssText = 'border:12px solid #fff;border-bottom-width:24px;flex:none';
+      frame.appendChild(svg);
+      source.parentElement?.querySelector('[data-label-preview]')?.replaceChildren(frame);
     });
   }
 

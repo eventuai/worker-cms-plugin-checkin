@@ -6,6 +6,7 @@
 // plugin's private helpers (kept local rather than shared, same rationale as
 // crypto.ts).
 
+import { compareByWeightThenName } from '@lionrockjs/worker-cms-plugin';
 import { attr, localized, type CmsClient, type CmsPage } from './cms';
 import { compactCheckinCode } from './qr-links';
 
@@ -19,7 +20,9 @@ export interface LabelFrame {
 /** Lists the published label templates configured in the Events admin. */
 export async function eventLabels(cms: CmsClient, eventId: number): Promise<CmsPage[]> {
   const { pages } = await cms.listWithLiveStatus('label', { parentId: eventId, limit: 500 });
-  return pages.filter((label) => label.isPublished === true);
+  // Match the Events admin's label sequence so kiosk previews and the badge
+  // endpoint use the same order as /events/:eventId/labels.
+  return pages.filter((label) => label.isPublished === true).sort(compareByWeightThenName);
 }
 
 /** The Events plugin stores the editor document as JSON in `lect.design`. */

@@ -241,6 +241,8 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(labelRendererScript).toContain('const printableMarginY = Math.floor(4 * PX_PER_MM)');
     expect(labelRendererScript).toContain('const printableMarginL = Math.floor(3 * PX_PER_MM)');
     expect(labelRendererScript).toContain('const printableMarginR = 2');
+    expect(labelRendererScript).toContain("frame.setAttribute('data-label-safe-area', '')");
+    expect(labelRendererScript).toContain("border:12px solid #fff;border-bottom-width:24px;flex:none");
   });
 
   it('renders the kiosk settings page with the same left-aligned wrapper', async () => {
@@ -449,8 +451,8 @@ describe('kiosk (login-gated admin surface)', () => {
       if (url.pathname === '/__cms/pages/12') return Response.json({ page: { id: 12, page_type: 'mail_list', name: 'VIP', page_id: null, lect: { _pointers: { event: '7' } } } });
       if (url.pathname === '/__cms/pages' && url.searchParams.get('page_type') === 'label') return Response.json({
         pages: [
-          { id: 50, page_type: 'label', name: 'Name badge', isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@name]' }] }) } },
-          { id: 51, page_type: 'label', name: 'Staff badge', isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@organization]' }] }) } },
+          { id: 50, page_type: 'label', name: 'Name badge', weight: 10, isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@name]' }] }) } },
+          { id: 51, page_type: 'label', name: 'Staff badge', weight: 1, isPublished: true, lect: { design: JSON.stringify({ labelConfig: { width: 60, height: 30 }, textElements: [{ x: 10, y: 20, text: '[@organization]' }] }) } },
           { id: 52, page_type: 'label', name: 'Unpublished badge', isPublished: false, lect: { design: '{}' } },
         ], total: 3,
       });
@@ -476,6 +478,7 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('>Undo all</button>');
     expect(html).toContain('Name badge');
     expect(html).toContain('Staff badge');
+    expect(html.indexOf('Staff badge')).toBeLessThan(html.indexOf('Name badge'));
     expect(html).not.toContain('Unpublished badge');
     expect(html.match(/data-print-badges/g)).toHaveLength(1);
     expect(html).toContain('/admin/plugins/checkin/assets/js/encoder.js');
