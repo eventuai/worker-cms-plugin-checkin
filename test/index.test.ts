@@ -70,6 +70,7 @@ describe('plugin contract', () => {
       nav: [{ label: 'Check-in', href: 'dashboard', roles: ['admin', 'editor', 'moderator', 'event-helper'] }],
     });
     expect((manifest as { assets?: Array<{ path?: string }> }).assets).toContainEqual(expect.objectContaining({ path: '/assets/js/kiosk-labels.js' }));
+    expect((manifest as { assets?: Array<{ path?: string }> }).assets).toContainEqual(expect.objectContaining({ path: '/assets/js/qrcode.min.js' }));
   });
 
   it('requires the shared secret for admin routes', async () => {
@@ -422,6 +423,12 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(html).toContain('/admin/plugins/checkin/assets/js/encoder.js');
     expect(html).toContain('/admin/plugins/checkin/assets/js/printer.js');
     expect(html).toContain('/admin/plugins/checkin/assets/js/kiosk-labels.js');
+    // Must be this plugin's own asset URL — the host allowlist strips scripts
+    // that point at another plugin's prefix (e.g. /admin/plugins/events/...).
+    expect(html).toContain('/admin/plugins/checkin/assets/js/qrcode.min.js');
+    expect(html).not.toContain('/admin/plugins/events/');
+    // The QR payload token label designs default to ([@checkin_qrcode]).
+    expect(html).toContain('checkin_qrcode');
   });
 
   it('shows RFID pairing only when the event enables rfid', async () => {

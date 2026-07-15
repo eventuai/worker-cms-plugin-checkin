@@ -52,6 +52,10 @@
     {
       "path": "/assets/js/kiosk-labels.js",
       "label": "Published event-label preview"
+    },
+    {
+      "path": "/assets/js/qrcode.min.js",
+      "label": "QR code generator library (qrcode-generator 1.4.4, MIT)"
     }
   ],
   "contentTypes": {

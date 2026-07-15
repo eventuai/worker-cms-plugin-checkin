@@ -388,6 +388,9 @@ function initBadgePrint() {
         const widthMm = Number.parseFloat(String(config.width || '60'));
         const heightMm = Number.parseFloat(String(config.height || '30'));
         if (!svgElement) throw new Error('Badge preview is not ready');
+        // QR codes render once qrcode.min.js finishes loading (kiosk-labels.js
+        // marks them pending) — don't print a badge whose QR is still missing.
+        if (svgElement.querySelector('[data-qr-pending]')) throw new Error('Badge preview is not ready');
         button.textContent = `Preparing ${index + 1} of ${cards.length}…`;
         printCommands.push(await encodeBadge(svgElement, widthMm, heightMm));
       }

@@ -79,18 +79,33 @@ export async function resolveCheckinCode(code: string, secret: string | undefine
 }
 
 /**
+ * Mints the compact badge QR payload for a main guest, format-identical to
+ * cms-plugin-events' compactCheckinCode so badges printed from the kiosk scan
+ * back through resolveCompactCheckinCode below (and the Events plugin's own
+ * scanners).
+ */
+export function compactCheckinCode(listId: number, guestId: number): string {
+  if (!Number.isSafeInteger(listId) || listId <= 0 || !Number.isSafeInteger(guestId) || guestId <= 0) {
+    throw new Error('invalid list/guest id for compact check-in code');
+  }
+  const signedValue = `qrcode${listId}${guestId}`;
+  const signature = bytesToHex(blake3(new TextEncoder().encode(signedValue))).slice(0, 6);
+  return `EAI${listId.toString(32)}:${(guestId - listId).toString(32)}:M:${signature}`;
+}
+
+/**
  * Resolves the compact QR payload emitted by cms-plugin-events:
- * `EAI{list-base32}:{guest-id-minus-list-base32}:{M|plus-index}:{checksum}`.
+ * `EAI{list-base32}:{signed-guest-id-minus-list-base32}:{M|plus-index}:{checksum}`.
  * This is also the legacy Eventuai ticket format, retained by Events so
  * printed tickets remain small and compatible with existing scanners.
  */
 function resolveCompactCheckinCode(value: string): CheckinLink | null {
-  const match = /^EAI([0-9a-v]+):([0-9a-v]+):(M|[0-9]+):([0-9a-f]{6})$/i.exec(value);
+  const match = /^EAI([0-9a-v]+):(-?[0-9a-v]+):(M|[0-9]+):([0-9a-f]{6})$/i.exec(value);
   if (!match) return null;
 
   const [, listRaw, guestDeltaRaw, markerRaw, signature] = match;
   const listId = parseBase32Id(listRaw);
-  const guestDelta = parseBase32Id(guestDeltaRaw);
+  const guestDelta = parseBase32Id(guestDeltaRaw, true);
   if (!listId || guestDelta === null) return null;
   const guestId = listId + guestDelta;
   if (!Number.isSafeInteger(guestId) || guestId <= 0) return null;
@@ -108,10 +123,10 @@ function resolveCompactCheckinCode(value: string): CheckinLink | null {
     : { kind: 'plus', listId, guestId, index: plusIndex };
 }
 
-function parseBase32Id(value: string): number | null {
-  if (!/^[0-9a-v]+$/i.test(value)) return null;
+function parseBase32Id(value: string, allowNegative = false): number | null {
+  if (!(allowNegative ? /^-?[0-9a-v]+$/i : /^[0-9a-v]+$/i).test(value)) return null;
   const id = Number.parseInt(value, 32);
-  return Number.isSafeInteger(id) && id >= 0 ? id : null;
+  return Number.isSafeInteger(id) && (allowNegative || id >= 0) ? id : null;
 }
 
 function pageId(parts: string[]): number | null {

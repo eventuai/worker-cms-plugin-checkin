@@ -583,7 +583,7 @@ async function kioskGuest(cms: CmsClient, views: Fetcher, event: CmsPage, rest: 
   const action = rest[1];
   const returnTo = safeAdminReturn(url.searchParams.get('return_to'));
 
-  if (action === 'badge') return renderBadge(cms, event, guest);
+  if (action === 'badge') return renderBadge(cms, event, list, guest);
 
   if (action && request.method === 'POST') {
     if (!access.canCheckIn) return forbidden();
@@ -692,11 +692,11 @@ function eventRfidEnabled(event: CmsPage): boolean {
   return attr(event.lect, 'rfid').trim().toLowerCase() === 'yes';
 }
 
-async function renderBadge(cms: CmsClient, event: CmsPage, guest: CmsPage): Promise<Response> {
+async function renderBadge(cms: CmsClient, event: CmsPage, list: CmsPage, guest: CmsPage): Promise<Response> {
   const labels = await eventLabels(cms, event.id);
   if (!labels.length) return new Response('No badge template configured for this event yet.', { status: 404 });
   const frame = labelFrame(labels[0]);
-  const svg = renderLabel(frame.svg, guestTokens(guest));
+  const svg = renderLabel(frame.svg, guestTokens(guest, list, event));
   return new Response(svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'no-store' } });
 }
 
