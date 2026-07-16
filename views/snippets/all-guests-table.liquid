@@ -2,26 +2,26 @@
   <div class="overflow-x-auto w-full">
     <table class="w-full min-w-[780px] text-left" data-table-filter="guests" data-privacy-table>
       <thead class="border-b border-gray-200 bg-gray-50">
-        <tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name / Email</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Guest list</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Organisation</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>{% if hasCustomFields %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"><form method="get" action="{{ detailHref | escape }}"><select class="max-w-[12rem] cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold uppercase tracking-wider text-gray-500" name="cf" data-autosubmit><option value="">Custom field</option>{% for field in customFields %}<option value="{{ field.key | escape }}"{% if field.selected %} selected{% endif %}>{{ field.label | escape }}</option>{% endfor %}</select></form></th>{% endif %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Check-in</th><th class="px-6 py-3"></th></tr>
+        <tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name / Email</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Guest list</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Organisation</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>{% if hasCustomFields %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"><form method="get" action="{{ detailHref }}"><select class="max-w-[12rem] cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold uppercase tracking-wider text-gray-500" name="cf" data-autosubmit><option value="">Custom field</option>{% for field in customFields %}<option value="{{ field.key }}"{% if field.selected %} selected{% endif %}>{{ field.label }}</option>{% endfor %}</select></form></th>{% endif %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Check-in</th><th class="px-6 py-3"></th></tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         {% for guest in guests %}
-          <tr class="hover:bg-gray-50" data-table-filter-row data-guest-row data-filter-search="{{ guest.searchText | escape }}" data-filter-status="{{ guest.status | escape }}" data-filter-color="{{ guest.colorTag | escape }}">
+          <tr class="hover:bg-gray-50" data-table-filter-row data-guest-row data-filter-search="{{ guest.searchText }}" data-filter-status="{{ guest.status }}" data-filter-color="{{ guest.colorTag }}">
             <td class="max-w-[400px] px-6 py-3 text-sm text-gray-700">
               <div class="flex min-w-0 items-center gap-2">
                 <span data-guest-color>{% render "color-tag-picker", value: guest.colorTag, label: "Color tag" %}</span>
                 <div class="min-w-0">
-                  <a class="block truncate font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref | escape }}" data-private-field="name" data-guest-name>{{ guest.name | escape }}</a>
-                  <div class="truncate text-sm text-gray-500" data-private-field="email" data-guest-email>{{ guest.email | escape }}</div>
+                  <a class="block truncate font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref }}" data-private-field="name" data-guest-name>{{ guest.name }}</a>
+                  <div class="truncate text-sm text-gray-500" data-private-field="email" data-guest-email>{{ guest.email }}</div>
                 </div>
               </div>
             </td>
-            <td class="px-6 py-3 text-sm text-gray-700" data-guest-list>{{ guest.listName | escape }}</td>
-            <td class="max-w-[400px] truncate overflow-hidden px-6 py-3 text-sm text-gray-700"><span data-guest-organization>{{ guest.organization | escape }}</span><div class="text-xs text-gray-500" data-guest-plus{% unless guest.plusGuests > 0 %} hidden{% endunless %}>+<span data-guest-plus-count>{{ guest.plusGuests }}</span> <span data-guest-plus-label>guest{% unless guest.plusGuests == 1 %}s{% endunless %}</span></div></td>
-            <td class="px-6 py-3 text-sm text-gray-700"><span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" data-guest-status>{{ guest.status | escape }}</span></td>
-            {% if hasCustomFields %}<td class="px-6 py-3 text-sm text-gray-700"><span data-guest-custom-field{% if guest.customFieldValue == blank %} class="italic text-gray-400"{% endif %}>{% if selectedCustomFieldKey != blank and guest.customFieldValue != blank %}{{ guest.customFieldValue | escape }}{% else %}—{% endif %}</span></td>{% endif %}
+            <td class="px-6 py-3 text-sm text-gray-700" data-guest-list>{{ guest.listName }}</td>
+            <td class="max-w-[400px] truncate overflow-hidden px-6 py-3 text-sm text-gray-700"><span data-guest-organization>{{ guest.organization }}</span><div class="text-xs text-gray-500" data-guest-plus{% unless guest.plusGuests > 0 %} hidden{% endunless %}>+<span data-guest-plus-count>{{ guest.plusGuests }}</span> <span data-guest-plus-label>guest{% unless guest.plusGuests == 1 %}s{% endunless %}</span></div></td>
+            <td class="px-6 py-3 text-sm text-gray-700"><span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" data-guest-status>{{ guest.status }}</span></td>
+            {% if hasCustomFields %}<td class="px-6 py-3 text-sm text-gray-700"><span data-guest-custom-field{% if guest.customFieldValue == blank %} class="italic text-gray-400"{% endif %}>{% if selectedCustomFieldKey != blank and guest.customFieldValue != blank %}{{ guest.customFieldValue }}{% else %}—{% endif %}</span></td>{% endif %}
             <td class="px-6 py-3 text-sm text-gray-700" data-guest-checkin>{% if guest.checkedIn %}<span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">Checked in</span>{% else %}<span class="text-xs text-gray-400">Not checked in</span>{% endif %}</td>
-            <td class="px-6 py-3 text-right"><a class="text-sm font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref | escape }}" data-guest-open>Open →</a></td>
+            <td class="px-6 py-3 text-right"><a class="text-sm font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref }}" data-guest-open>Open →</a></td>
           </tr>
         {% else %}
           <tr data-table-filter-empty><td colspan="{% if hasCustomFields %}7{% else %}6{% endif %}" class="px-6 py-10 text-center text-sm text-gray-400">No guests on this event yet.</td></tr>

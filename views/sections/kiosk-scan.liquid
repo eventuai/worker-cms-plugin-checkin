@@ -1,9 +1,9 @@
 <div class="max-w-md">
   <div class="mb-4">
-    <a class="inline-block text-xs font-medium text-gray-500 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName | escape }}</a>
+    <a class="inline-block text-xs font-medium text-gray-500 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName }}</a>
   </div>
 
-  {% if error != blank %}<p class="mb-4 bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm">{{ error | escape }}</p>{% endif %}
+  {% if error != blank %}<p class="mb-4 bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm">{{ error }}</p>{% endif %}
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
     <div id="scanVideoFrame" class="relative w-full rounded-lg overflow-hidden bg-gray-900" style="aspect-ratio:1/1;touch-action:none">
@@ -22,14 +22,14 @@
     </div>
     <p id="scanStatus" class="text-center text-sm text-gray-500 mt-2">Starting camera&hellip;</p>
 
-    <form id="scanCodeForm" method="post" action="{{ scanAction | escape }}" class="mt-4">
+    <form id="scanCodeForm" method="post" action="{{ scanAction }}" class="mt-4">
       <label for="scanCodeInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Enter code manually</label>
       <input type="text" name="code" id="scanCodeInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="QR / barcode / RFID value">
       <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Find guest</button>
     </form>
   </div>
 
-  <form method="get" action="{{ searchHref | escape }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+  <form method="get" action="{{ searchHref }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
     <label for="scanSearchInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Or search by name</label>
     <input type="text" name="q" id="scanSearchInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Name, email or company&hellip;">
     <button type="submit" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
@@ -37,7 +37,7 @@
 
   {% if canCheckIn %}
   <a href="#" id="showAdhocForm" class="block text-center text-sm text-indigo-600 hover:text-indigo-800 font-medium py-2">+ Walk-in guest</a>
-  <form id="adhocForm" method="post" action="{{ adhocHref | escape }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hidden">
+  <form id="adhocForm" method="post" action="{{ adhocHref }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hidden">
     <label for="adhocName" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Name</label>
     <input type="text" name="name" id="adhocName" required class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
     <label for="adhocOrg" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Organization</label>

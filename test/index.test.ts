@@ -807,7 +807,15 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
 
     const embedded = html.match(/<div hidden data-checkin-all-guests-json>([\s\S]*?)<\/div>/);
     expect(embedded).not.toBeNull();
-    const deferred = JSON.parse(embedded?.[1] ?? '[]') as Array<{ id: number; name: string; guestHref: string }>;
+    // The renderer auto-escapes the JSON into the div; the browser reads it
+    // back via textContent, which decodes entities — mirror that here.
+    const decodedJson = (embedded?.[1] ?? '[]')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&#34;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+    const deferred = JSON.parse(decodedJson) as Array<{ id: number; name: string; guestHref: string }>;
     expect(deferred).toHaveLength(5);
     expect(deferred[0]).toMatchObject({ id: 101, name: 'Guest 101' });
     expect(deferred[4]).toMatchObject({ id: 105, name: 'Guest 105 </script><script>unsafe()</script>' });

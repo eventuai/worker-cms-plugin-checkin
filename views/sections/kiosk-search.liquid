@@ -1,29 +1,29 @@
 <div class="max-w-md">
   <div class="mb-4 flex items-center justify-between gap-4">
     <div>
-      <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName | escape }}</a>
+      <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName }}</a>
       <h1 class="text-2xl font-bold text-gray-900">Search</h1>
     </div>
-    <a class="text-sm text-indigo-600 hover:text-indigo-800 font-medium" href="{{ scanHref | escape }}">Scan &rarr;</a>
+    <a class="text-sm text-indigo-600 hover:text-indigo-800 font-medium" href="{{ scanHref }}">Scan &rarr;</a>
   </div>
 
   <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
     {% if field != blank %}
-      <input type="hidden" name="field" value="{{ field | escape }}">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Searching by {{ fieldLabel | escape }}</p>
+      <input type="hidden" name="field" value="{{ field }}">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Searching by {{ fieldLabel }}</p>
     {% endif %}
-    <input type="text" name="q" value="{{ query | escape }}" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{% if field != blank %}{{ fieldLabel | escape }} value&hellip;{% else %}Name, email or company&hellip;{% endif %}">
+    <input type="text" name="q" value="{{ query }}" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{% if field != blank %}{{ fieldLabel }} value&hellip;{% else %}Name, email or company&hellip;{% endif %}">
     <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
   </form>
 
   <div class="space-y-2">
     {% for guest in guests %}
-      <a href="{{ guest.guestHref | escape }}" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:bg-gray-50">
-        <div class="font-semibold text-gray-900">{{ guest.name | escape }}{% if guest.checkedIn %} <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Checked in</span>{% endif %}</div>
-        <div class="text-sm text-gray-500">{{ guest.organization | escape }}{% if guest.organization != blank and guest.listName != blank %} &middot; {% endif %}{{ guest.listName | escape }}</div>
+      <a href="{{ guest.guestHref }}" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:bg-gray-50">
+        <div class="font-semibold text-gray-900">{{ guest.name }}{% if guest.checkedIn %} <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Checked in</span>{% endif %}</div>
+        <div class="text-sm text-gray-500">{{ guest.organization }}{% if guest.organization != blank and guest.listName != blank %} &middot; {% endif %}{{ guest.listName }}</div>
       </a>
     {% else %}
-      <p class="text-center text-sm text-gray-400 py-10">{% if query != blank %}No guests match &ldquo;{{ query | escape }}&rdquo;.{% else %}Start typing to search.{% endif %}</p>
+      <p class="text-center text-sm text-gray-400 py-10">{% if query != blank %}No guests match &ldquo;{{ query }}&rdquo;.{% else %}Start typing to search.{% endif %}</p>
     {% endfor %}
   </div>
 </div>
