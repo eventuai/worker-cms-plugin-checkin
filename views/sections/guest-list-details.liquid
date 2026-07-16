@@ -2,69 +2,69 @@
   <div>
     <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ backHref }}">← {{ eventName }}</a>
     <h1 class="text-2xl font-bold text-gray-900">{{ listName }}</h1>
-    <p class="mt-1 text-sm text-gray-500">{{ guests.size }} guest{% unless guests.size == 1 %}s{% endunless %}</p>
+    <p class="mt-1 text-sm text-gray-500">{{ guests.size }} {% if guests.size == 1 %}{{ "checkin.common.guest" | t }}{% else %}{{ "checkin.common.guests" | t }}{% endif %}</p>
   </div>
   <div class="flex shrink-0 items-center gap-2">
-    <a href="{{ scanHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Scan" aria-label="Scan">
+    <a href="{{ scanHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="{{ "checkin.common.scan" | t }}" aria-label="{{ "checkin.common.scan" | t }}">
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span class="hidden lg:inline">Scan</span>
+      <span class="hidden lg:inline">{{ "checkin.common.scan" | t }}</span>
     </a>
-    <a href="{{ settingsHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Settings" aria-label="Settings">
+    <a href="{{ settingsHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="{{ "checkin.common.settings" | t }}" aria-label="{{ "checkin.common.settings" | t }}">
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4M10 8h4M18 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span class="hidden lg:inline">Settings</span>
+      <span class="hidden lg:inline">{{ "checkin.common.settings" | t }}</span>
     </a>
   </div>
 </div>
 
 <div class="mb-4 flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
   <form class="flex flex-wrap items-center gap-3" method="get" action="{{ detailHref }}" data-table-filter-form data-table-filter-target="[data-table-filter='guests']" data-table-filter-count-target="[data-table-filter-count='guests']" data-table-filter-count-label-target="[data-table-filter-count-label='guests']">
-    <input class="block max-w-[22rem] rounded-lg border border-gray-300 px-3 py-2 text-sm" name="q" placeholder="Search name, email or organisation" aria-label="Search guests">
-    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="status" aria-label="Filter by status">
-      <option value="">All statuses</option>
+    <input class="block max-w-[22rem] rounded-lg border border-gray-300 px-3 py-2 text-sm" name="q" placeholder="{{ "checkin.views.guest_list_details.search_placeholder" | t }}" aria-label="{{ "checkin.common.search_guests" | t }}">
+    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="status" aria-label="{{ "checkin.common.filter_by_status" | t }}">
+      <option value="">{{ "checkin.common.all_statuses" | t }}</option>
       {% for status in statuses %}<option value="{{ status }}">{{ status }}</option>{% endfor %}
     </select>
-    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="color" aria-label="Filter by color tag">
-      <option value="">All color tags</option>
-      <option value="none">No color tag</option>
+    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="color" aria-label="{{ "checkin.common.filter_by_color_tag" | t }}">
+      <option value="">{{ "checkin.common.all_color_tags" | t }}</option>
+      <option value="none">{{ "checkin.common.no_color_tag" | t }}</option>
       {% for color in colorOptions %}<option value="{{ color.value }}">{{ color.label }}</option>{% endfor %}
     </select>
-    <a class="text-sm font-semibold text-gray-500 hover:text-indigo-700" href="{{ detailHref }}" data-table-filter-clear hidden>Clear</a>
+    <a class="text-sm font-semibold text-gray-500 hover:text-indigo-700" href="{{ detailHref }}" data-table-filter-clear hidden>{{ "checkin.common.clear" | t }}</a>
   </form>
-  <p class="shrink-0 text-sm text-gray-500"><span data-table-filter-count="guests">{{ guests.size }}</span> <span data-table-filter-count-label="guests" data-singular="guest" data-plural="guests">guest{% unless guests.size == 1 %}s{% endunless %}</span></p>
+  <p class="shrink-0 text-sm text-gray-500"><span data-table-filter-count="guests">{{ guests.size }}</span> <span data-table-filter-count-label="guests" data-singular="{{ "checkin.common.guest" | t }}" data-plural="{{ "checkin.common.guests" | t }}">{% if guests.size == 1 %}{{ "checkin.common.guest" | t }}{% else %}{{ "checkin.common.guests" | t }}{% endif %}</span></p>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200">
   <div class="overflow-x-auto w-full">
     <table class="w-full min-w-[680px] text-left" data-table-filter="guests" data-privacy-table>
       <thead class="border-b border-gray-200 bg-gray-50">
-        <tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Name / Email</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Organisation</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>{% if hasCustomFields %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"><form method="get" action="{{ detailHref }}"><select class="max-w-[12rem] cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold uppercase tracking-wider text-gray-500" name="cf" data-autosubmit><option value="">Custom field</option>{% for field in customFields %}<option value="{{ field.key }}"{% if field.selected %} selected{% endif %}>{{ field.label }}</option>{% endfor %}</select></form></th>{% endif %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Check-in</th><th class="px-6 py-3"></th></tr>
+        <tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{{ "checkin.common.name_email" | t }}</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{{ "checkin.common.organization" | t }}</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{{ "checkin.common.status" | t }}</th>{% if hasCustomFields %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"><form method="get" action="{{ detailHref }}"><select class="max-w-[12rem] cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold uppercase tracking-wider text-gray-500" name="cf" data-autosubmit><option value="">{{ "checkin.common.custom_field" | t }}</option>{% for field in customFields %}<option value="{{ field.key }}"{% if field.selected %} selected{% endif %}>{{ field.label }}</option>{% endfor %}</select></form></th>{% endif %}<th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{{ "checkin.common.check_in" | t }}</th><th class="px-6 py-3"></th></tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         {% for guest in guests %}
           <tr class="hover:bg-gray-50" data-table-filter-row data-filter-search="{{ guest.searchText }}" data-filter-status="{{ guest.status }}" data-filter-color="{{ guest.colorTag }}">
             <td class="max-w-[400px] px-6 py-3 text-sm text-gray-700">
               <div class="flex min-w-0 items-center gap-2">
-                {% render "color-tag-picker", value: guest.colorTag, label: "Color tag" %}
+                {% render "color-tag-picker", value: guest.colorTag, label: "checkin.common.color_tag" | t %}
                 <div class="min-w-0">
                   <a class="block truncate font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref }}" data-private-field="name">{{ guest.name }}</a>
                   <div class="truncate text-sm text-gray-500" data-private-field="email">{{ guest.email }}</div>
                 </div>
               </div>
             </td>
-            <td class="max-w-[400px] truncate overflow-hidden px-6 py-3 text-sm text-gray-700">{{ guest.organization }}{% if guest.plusGuests > 0 %}<div class="text-xs text-gray-500">+{{ guest.plusGuests }} guest{% unless guest.plusGuests == 1 %}s{% endunless %}</div>{% endif %}</td>
+            <td class="max-w-[400px] truncate overflow-hidden px-6 py-3 text-sm text-gray-700">{{ guest.organization }}{% if guest.plusGuests > 0 %}<div class="text-xs text-gray-500">+{{ guest.plusGuests }} {% if guest.plusGuests == 1 %}{{ "checkin.common.guest" | t }}{% else %}{{ "checkin.common.guests" | t }}{% endif %}</div>{% endif %}</td>
             <td class="px-6 py-3 text-sm text-gray-700"><span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{{ guest.status }}</span></td>
             {% if hasCustomFields %}<td class="px-6 py-3 text-sm text-gray-700">{% if selectedCustomFieldKey != blank %}{% if guest.customFieldValue != blank %}{{ guest.customFieldValue }}{% else %}<span class="italic text-gray-400">—</span>{% endif %}{% else %}<span class="italic text-gray-400">—</span>{% endif %}</td>{% endif %}
-            <td class="px-6 py-3 text-sm text-gray-700">{% if guest.checkedIn %}<span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">Checked in</span>{% else %}<span class="text-xs text-gray-400">Not checked in</span>{% endif %}</td>
-            <td class="px-6 py-3 text-right"><a class="text-sm font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref }}">Open →</a></td>
+            <td class="px-6 py-3 text-sm text-gray-700">{% if guest.checkedIn %}<span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{{ "checkin.common.checked_in" | t }}</span>{% else %}<span class="text-xs text-gray-400">{{ "checkin.common.not_checked_in" | t }}</span>{% endif %}</td>
+            <td class="px-6 py-3 text-right"><a class="text-sm font-medium text-indigo-600 hover:text-indigo-800" href="{{ guest.guestHref }}">{{ "checkin.common.open" | t }} →</a></td>
           </tr>
         {% else %}
-          <tr><td colspan="{% if hasCustomFields %}6{% else %}5{% endif %}" class="px-6 py-10 text-center text-sm text-gray-400">No guests in this list yet.</td></tr>
+          <tr><td colspan="{% if hasCustomFields %}6{% else %}5{% endif %}" class="px-6 py-10 text-center text-sm text-gray-400">{{ "checkin.views.guest_list_details.no_guests_in_list" | t }}</td></tr>
         {% endfor %}
-        {% if hasGuests %}<tr hidden data-table-filter-empty><td colspan="{% if hasCustomFields %}6{% else %}5{% endif %}" class="px-6 py-10 text-center text-sm text-gray-400">No guests match this filter.</td></tr>{% endif %}
+        {% if hasGuests %}<tr hidden data-table-filter-empty><td colspan="{% if hasCustomFields %}6{% else %}5{% endif %}" class="px-6 py-10 text-center text-sm text-gray-400">{{ "checkin.common.no_guests_match_filter" | t }}</td></tr>{% endif %}
       </tbody>
     </table>
   </div>

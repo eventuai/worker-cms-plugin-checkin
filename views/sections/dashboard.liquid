@@ -1,9 +1,9 @@
 <div class="flex items-center justify-between gap-4 mb-4">
-  <div><h1 class="text-2xl font-bold text-gray-900">Check-in</h1><p class="mt-1 text-sm text-gray-500">Events with check-in-relevant configuration.</p></div>
+  <div><h1 class="text-2xl font-bold text-gray-900">{{ "checkin.views.dashboard.check_in" | t }}</h1><p class="mt-1 text-sm text-gray-500">{{ "checkin.views.dashboard.events_with_check_in_configuration" | t }}</p></div>
 </div>
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
   <table class="w-full min-w-[560px] text-left relative">
-    <thead class="bg-gray-50 border-b border-gray-200"><tr><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Event</th><th class="px-6 py-3"></th></tr></thead>
+    <thead class="bg-gray-50 border-b border-gray-200"><tr><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ "checkin.common.event" | t }}</th><th class="px-6 py-3"></th></tr></thead>
     <tbody class="divide-y divide-gray-100">
       {% for event in events %}
         <tr>
@@ -11,7 +11,7 @@
           <td class="px-6 py-3 text-right text-sm"><a class="text-indigo-600 font-medium hover:text-indigo-800" href="{{ event.href }}">→</a></td>
         </tr>
       {% else %}
-        <tr><td colspan="2" class="px-6 py-10 text-center text-sm text-gray-400">No active events.</td></tr>
+        <tr><td colspan="2" class="px-6 py-10 text-center text-sm text-gray-400">{{ "checkin.views.dashboard.no_active_events" | t }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

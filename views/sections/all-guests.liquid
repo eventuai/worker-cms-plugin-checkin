@@ -1,52 +1,52 @@
 <div class="flex items-center justify-between gap-4 mb-4">
   <div>
     <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ backHref }}">← {{ eventName }}</a>
-    <h1 class="text-2xl font-bold text-gray-900">All guests</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{{ "checkin.common.all_guests" | t }}</h1>
     <p class="mt-1 text-sm text-gray-500" data-checkin-all-guests-summary>
-      {% if asyncGuests %}<span data-checkin-all-guests-summary-text><span data-table-filter-count="guests">{{ initialCount }}</span> of {{ filteredCount }} matching guests rendered</span>
-      {% else %}<span data-table-filter-count="guests">{{ filteredCount }}</span> <span data-table-filter-count-label="guests" data-singular="guest" data-plural="guests">guest{% unless totalCount == 1 %}s{% endunless %}</span> across every list{% endif %}
+      {% if asyncGuests %}<span data-checkin-all-guests-summary-text><span data-table-filter-count="guests">{{ initialCount }}</span> {{ "checkin.common.of" | t }} {{ filteredCount }} {{ "checkin.views.all_guests.matching_guests_rendered" | t }}</span>
+      {% else %}<span data-table-filter-count="guests">{{ filteredCount }}</span> <span data-table-filter-count-label="guests" data-singular="{{ "checkin.common.guest" | t }}" data-plural="{{ "checkin.common.guests" | t }}">{% if totalCount == 1 %}{{ "checkin.common.guest" | t }}{% else %}{{ "checkin.common.guests" | t }}{% endif %}</span> {{ "checkin.views.all_guests.across_every_list" | t }}{% endif %}
     </p>
   </div>
   <div class="flex shrink-0 items-center gap-2">
-    <a href="{{ scanHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Scan" aria-label="Scan">
+    <a href="{{ scanHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="{{ "checkin.common.scan" | t }}" aria-label="{{ "checkin.common.scan" | t }}">
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span class="hidden lg:inline">Scan</span>
+      <span class="hidden lg:inline">{{ "checkin.common.scan" | t }}</span>
     </a>
-    <a href="{{ settingsHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="Settings" aria-label="Settings">
+    <a href="{{ settingsHref }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="{{ "checkin.common.settings" | t }}" aria-label="{{ "checkin.common.settings" | t }}">
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4M10 8h4M18 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span class="hidden lg:inline">Settings</span>
+      <span class="hidden lg:inline">{{ "checkin.common.settings" | t }}</span>
     </a>
   </div>
 </div>
 
 <div class="mb-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
   <form class="flex flex-wrap items-center gap-3" method="get" action="{{ detailHref }}" data-table-filter-form data-table-filter-target="[data-table-filter='guests']" data-table-filter-count-target="[data-table-filter-count='guests']" data-table-filter-count-label-target="[data-table-filter-count-label='guests']">
-    <input class="block max-w-[22rem] rounded-lg border border-gray-300 px-3 py-2 text-sm" name="q" placeholder="Search name, email, phone, guest ID or list" aria-label="Search guests">
-    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="status" aria-label="Filter by status">
-      <option value="">All statuses</option>
+    <input class="block max-w-[22rem] rounded-lg border border-gray-300 px-3 py-2 text-sm" name="q" placeholder="{{ "checkin.views.all_guests.search_placeholder" | t }}" aria-label="{{ "checkin.common.search_guests" | t }}">
+    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="status" aria-label="{{ "checkin.common.filter_by_status" | t }}">
+      <option value="">{{ "checkin.common.all_statuses" | t }}</option>
       {% for status in statuses %}<option value="{{ status }}">{{ status }}</option>{% endfor %}
     </select>
-    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="color" aria-label="Filter by color tag">
-      <option value="">All color tags</option>
-      <option value="none">No color tag</option>
+    <select class="block rounded-lg border border-gray-300 px-3 py-2 text-sm" name="color" aria-label="{{ "checkin.common.filter_by_color_tag" | t }}">
+      <option value="">{{ "checkin.common.all_color_tags" | t }}</option>
+      <option value="none">{{ "checkin.common.no_color_tag" | t }}</option>
       {% for color in colorOptions %}<option value="{{ color.value }}">{{ color.label }}</option>{% endfor %}
     </select>
-    <button class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" type="submit" title="Search" aria-label="Search guests">
+    <button class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" type="submit" title="{{ "checkin.common.search" | t }}" aria-label="{{ "checkin.common.search_guests" | t }}">
       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg>
     </button>
-    <a class="text-sm font-semibold text-gray-500 hover:text-indigo-700" href="{{ detailHref }}" data-table-filter-clear hidden>Clear</a>
+    <a class="text-sm font-semibold text-gray-500 hover:text-indigo-700" href="{{ detailHref }}" data-table-filter-clear hidden>{{ "checkin.common.clear" | t }}</a>
   </form>
 </div>
 
 {% if asyncGuests %}
-  <div data-checkin-all-guests-async data-total-count="{{ totalCount }}" data-filtered-count="{{ filteredCount }}" data-initial-count="{{ initialCount }}">
+  <div data-checkin-all-guests-async data-total-count="{{ totalCount }}" data-filtered-count="{{ filteredCount }}" data-initial-count="{{ initialCount }}" data-i18n-checked-in="{{ "checkin.common.checked_in" | t }}" data-i18n-not-checked-in="{{ "checkin.common.not_checked_in" | t }}" data-i18n-guest="{{ "checkin.common.guest" | t }}" data-i18n-guests="{{ "checkin.common.guests" | t }}" data-i18n-of="{{ "checkin.common.of" | t }}" data-i18n-matching-rendered="{{ "checkin.views.all_guests.matching_guests_rendered" | t }}" data-i18n-across-lists="{{ "checkin.views.all_guests.across_every_list" | t }}" data-i18n-rendering="{{ "checkin.views.all_guests.rendering" | t }}" data-i18n-matching-guests="{{ "checkin.views.all_guests.matching_guests" | t }}" data-i18n-render-error="{{ "checkin.views.all_guests.render_error" | t }}">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4 mb-4 text-center" data-checkin-all-guests-loading role="status" aria-live="polite">
       <span class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600" aria-hidden="true"></span>
-      <p class="mt-2 text-sm text-gray-500" data-checkin-all-guests-progress>Rendering {{ initialCount }} of {{ filteredCount }} matching guests…</p>
+      <p class="mt-2 text-sm text-gray-500" data-checkin-all-guests-progress>{{ "checkin.views.all_guests.rendering" | t }} {{ initialCount }} {{ "checkin.common.of" | t }} {{ filteredCount }} {{ "checkin.views.all_guests.matching_guests" | t }}…</p>
     </div>
     <div data-checkin-all-guests-table>{% render "all-guests-table",
       guests: guests,

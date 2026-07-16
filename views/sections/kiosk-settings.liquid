@@ -4,34 +4,34 @@
   </div>
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    <h1 class="text-2xl font-bold text-gray-900 mb-2">Printer mode <span id="printerStatus" class="text-sm text-gray-400"></span></h1>
-    <label class="flex items-center gap-2 text-sm text-gray-700 py-1"><input type="checkbox" id="usbPrinterToggle"> USB printer (WebUSB, Chrome/Edge only)</label>
-    <label class="flex items-center gap-2 text-sm text-gray-700 py-1"><input type="checkbox" id="serverPrinterToggle"> Printer server (local relay, works on any browser)</label>
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ "checkin.views.kiosk_settings.printer_mode" | t }} <span id="printerStatus" class="text-sm text-gray-400"></span></h1>
+    <label class="flex items-center gap-2 text-sm text-gray-700 py-1"><input type="checkbox" id="usbPrinterToggle"> {{ "checkin.views.kiosk_settings.usb_printer" | t }}</label>
+    <label class="flex items-center gap-2 text-sm text-gray-700 py-1"><input type="checkbox" id="serverPrinterToggle"> {{ "checkin.views.kiosk_settings.printer_server" | t }}</label>
 
     <div id="serverUrlSection" class="hidden mt-2">
-      <label for="printerServerUrl" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 mt-2">Printer server URL</label>
+      <label for="printerServerUrl" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 mt-2">{{ "checkin.views.kiosk_settings.printer_server_url" | t }}</label>
       <input type="text" id="printerServerUrl" placeholder="https://labelmaker.local/print" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm">
-      <button type="button" id="testServerBtn" class="mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Test connection</button>
+      <button type="button" id="testServerBtn" class="mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.views.kiosk_settings.test_connection" | t }}</button>
 
-      <label for="printerListUrl" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 mt-4">Printer list URL</label>
+      <label for="printerListUrl" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 mt-4">{{ "checkin.views.kiosk_settings.printer_list_url" | t }}</label>
       <input type="text" id="printerListUrl" placeholder="https://labelmaker.local/printers/list" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm">
       <div class="flex gap-2 mt-2">
-        <button type="button" id="listPrintersBtn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">List printers</button>
-        <button type="button" id="refresh_printers" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Refresh printers</button>
+        <button type="button" id="listPrintersBtn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.views.kiosk_settings.list_printers" | t }}</button>
+        <button type="button" id="refresh_printers" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.views.kiosk_settings.refresh_printers" | t }}</button>
       </div>
 
       <div id="printerSelectContainer" class="hidden mt-2">
-        <label for="printerSelect" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Selected printer</label>
+        <label for="printerSelect" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.views.kiosk_settings.selected_printer" | t }}</label>
         <select id="printerSelect" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"></select>
       </div>
     </div>
 
-    <button type="button" id="manualRequest" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Pair USB printer</button>
-    <button type="button" id="rawPrint" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 cursor-pointer">Send test print</button>
+    <button type="button" id="manualRequest" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">{{ "checkin.views.kiosk_settings.pair_usb_printer" | t }}</button>
+    <button type="button" id="rawPrint" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 cursor-pointer">{{ "checkin.views.kiosk_settings.send_test_print" | t }}</button>
   </div>
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-    <h2 class="text-base font-bold text-gray-900 mb-1">Event</h2>
+    <h2 class="text-base font-bold text-gray-900 mb-1">{{ "checkin.common.event" | t }}</h2>
     <p class="text-sm text-gray-500">{{ eventName }}</p>
   </div>
 </div>

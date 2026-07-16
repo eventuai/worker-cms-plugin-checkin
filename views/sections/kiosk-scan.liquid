@@ -1,4 +1,4 @@
-<div class="max-w-md">
+<div class="max-w-md" data-kiosk-scan data-i18n-camera="{{ "checkin.views.kiosk_scan.camera" | t }}" data-i18n-camera-unavailable="{{ "checkin.views.kiosk_scan.camera_unavailable" | t }}" data-i18n-loading-scanner="{{ "checkin.views.kiosk_scan.loading_scanner" | t }}" data-i18n-scanner-unavailable="{{ "checkin.views.kiosk_scan.scanner_unavailable" | t }}" data-i18n-starting-camera="{{ "checkin.views.kiosk_scan.starting_camera" | t }}" data-i18n-scanning="{{ "checkin.views.kiosk_scan.scanning" | t }}" data-i18n-code-detected="{{ "checkin.views.kiosk_scan.code_detected" | t }}">
   <div class="mb-4">
     <a class="inline-block text-xs font-medium text-gray-500 hover:text-indigo-700" href="/admin/plugins/checkin/events/{{ eventId }}">&larr; {{ eventName }}</a>
   </div>
@@ -9,45 +9,45 @@
     <div id="scanVideoFrame" class="relative w-full rounded-lg overflow-hidden bg-gray-900" style="aspect-ratio:1/1;touch-action:none">
       <video id="scanVideo" class="w-full h-full" style="object-fit:cover;background:#111827" playsinline autoplay muted></video>
       <div class="absolute inset-x-3 bottom-3 flex items-center gap-2">
-        <label for="scanCameraSelect" class="sr-only">Camera</label>
+        <label for="scanCameraSelect" class="sr-only">{{ "checkin.views.kiosk_scan.camera" | t }}</label>
         <select id="scanCameraSelect" class="max-w-1/2 min-w-0 flex-1 rounded-lg border border-white/40 bg-white/90 px-3 py-2 text-xs text-gray-900 shadow-sm backdrop-blur">
-          <option value="">Camera</option>
+          <option value="">{{ "checkin.views.kiosk_scan.camera" | t }}</option>
         </select>
-        <button type="button" id="scanMirrorToggle" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-white/40 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm backdrop-blur hover:bg-white" aria-pressed="false" title="Mirror camera" aria-label="Mirror camera">
+        <button type="button" id="scanMirrorToggle" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-white/40 bg-white/90 px-3 text-sm font-semibold text-gray-700 shadow-sm backdrop-blur hover:bg-white" aria-pressed="false" title="{{ "checkin.views.kiosk_scan.mirror_camera" | t }}" aria-label="{{ "checkin.views.kiosk_scan.mirror_camera" | t }}">
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 7H3m0 0 3-3M3 7l3 3m10 7h5m0 0-3-3m3 3-3 3M4 12h16M10 4v16m4-16v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
           </svg>
         </button>
       </div>
     </div>
-    <p id="scanStatus" class="text-center text-sm text-gray-500 mt-2">Starting camera&hellip;</p>
+    <p id="scanStatus" class="text-center text-sm text-gray-500 mt-2">{{ "checkin.views.kiosk_scan.starting_camera" | t }}&hellip;</p>
 
     <form id="scanCodeForm" method="post" action="{{ scanAction }}" class="mt-4">
-      <label for="scanCodeInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Enter code manually</label>
-      <input type="text" name="code" id="scanCodeInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="QR / barcode / RFID value">
-      <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Find guest</button>
+      <label for="scanCodeInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.views.kiosk_scan.enter_code_manually" | t }}</label>
+      <input type="text" name="code" id="scanCodeInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.views.kiosk_scan.code_value" | t }}">
+      <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.views.kiosk_scan.find_guest" | t }}</button>
     </form>
   </div>
 
   <form method="get" action="{{ searchHref }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-    <label for="scanSearchInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Or search by name</label>
-    <input type="text" name="q" id="scanSearchInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Name, email or company&hellip;">
-    <button type="submit" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
+    <label for="scanSearchInput" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.views.kiosk_scan.or_search_by_name" | t }}</label>
+    <input type="text" name="q" id="scanSearchInput" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.common.name_email_company" | t }}&hellip;">
+    <button type="submit" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.search" | t }}</button>
   </form>
 
   {% if canCheckIn %}
-  <a href="#" id="showAdhocForm" class="block text-center text-sm text-indigo-600 hover:text-indigo-800 font-medium py-2">+ Walk-in guest</a>
+  <a href="#" id="showAdhocForm" class="block text-center text-sm text-indigo-600 hover:text-indigo-800 font-medium py-2">+ {{ "checkin.views.kiosk_scan.walk_in_guest" | t }}</a>
   <form id="adhocForm" method="post" action="{{ adhocHref }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hidden">
-    <label for="adhocName" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Name</label>
+    <label for="adhocName" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.name" | t }}</label>
     <input type="text" name="name" id="adhocName" required class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
-    <label for="adhocOrg" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Organization</label>
+    <label for="adhocOrg" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.organization" | t }}</label>
     <input type="text" name="organization" id="adhocOrg" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
-    <label for="adhocEmail" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Email</label>
+    <label for="adhocEmail" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.email" | t }}</label>
     <input type="email" name="email" id="adhocEmail" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
-    <label for="adhocPlus" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Plus guests</label>
+    <label for="adhocPlus" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.plus_guests" | t }}</label>
     <input type="number" min="0" name="plus_guests" id="adhocPlus" value="0" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
     <input type="hidden" name="checkin" value="1">
-    <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Add &amp; check in</button>
+    <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.add_and_check_in" | t }}</button>
   </form>
   {% endif %}
 </div>

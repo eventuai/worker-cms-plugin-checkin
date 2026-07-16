@@ -1,11 +1,11 @@
 <div class="flex items-center justify-between gap-4 mb-4">
   <div>
-    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref }}">← Events</a>
+    <a class="inline-block text-xs text-gray-500 mb-1 hover:text-indigo-700" href="{{ dashboardHref }}">← {{ "checkin.common.events" | t }}</a>
     <h1 class="text-2xl font-bold text-gray-900">{{ eventName }}</h1>
   </div>
-  <a class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="View all guests" aria-label="View all guests" href="{{ allGuestsHref }}">
+  <a class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50" title="{{ "checkin.views.event_dashboard.view_all_guests" | t }}" aria-label="{{ "checkin.views.event_dashboard.view_all_guests" | t }}" href="{{ allGuestsHref }}">
     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg>
-    <span class="hidden lg:inline">View all guests</span>
+    <span class="hidden lg:inline">{{ "checkin.views.event_dashboard.view_all_guests" | t }}</span>
   </a>
 </div>
 
@@ -15,48 +15,48 @@
     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2m10 0h2a2 2 0 0 0 2-2v-2M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
     </svg>
-    <span>Scan</span>
+    <span>{{ "checkin.common.scan" | t }}</span>
   </a>
   <a href="{{ settingsHref }}" class="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4M10 8h4M18 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
     </svg>
-    <span>Settings</span>
+    <span>{{ "checkin.common.settings" | t }}</span>
   </a>
 </div>
 
 <!-- Search all guests on this event -->
 <form method="get" action="{{ searchHref }}" class="flex gap-2 py-4 sticky top-0 z-10 bg-gray-50 drop-shadow-lg">
-  <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Search all guests by name, email or company…">
-  <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer whitespace-nowrap">Search</button>
+  <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.views.event_dashboard.search_all_guests" | t }}">
+  <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer whitespace-nowrap">{{ "checkin.common.search" | t }}</button>
 </form>
 
 {% if hasCustomFields %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
-  <h2 class="text-lg font-bold text-gray-900 mb-3">Search by custom field</h2>
+  <h2 class="text-lg font-bold text-gray-900 mb-3">{{ "checkin.views.event_dashboard.search_by_custom_field" | t }}</h2>
   <form method="get" action="{{ searchHref }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
     <select name="field" data-custom-field-select data-storage-key="checkin:event-dashboard:custom-field:{{ eventId }}" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
       {% for field in customFields %}
         <option value="{{ field.value }}">{{ field.label }}</option>
       {% endfor %}
     </select>
-    <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Value to search…">
-    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Search</button>
+    <input type="text" name="q" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.views.event_dashboard.value_to_search" | t }}">
+    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.search" | t }}</button>
   </form>
 </div>
 {% endif %}
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
   <table class="w-full min-w-[560px] text-left relative">
-    <thead class="bg-gray-50 border-b border-gray-200"><tr><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Guest list</th><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Checked in</th></tr></thead>
+    <thead class="bg-gray-50 border-b border-gray-200"><tr><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ "checkin.common.guest_list" | t }}</th><th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ "checkin.common.checked_in" | t }}</th></tr></thead>
     <tbody class="divide-y divide-gray-100">
       {% for list in lists %}
         <tr>
-          <td class="px-6 py-3 text-sm text-gray-700"><a class="font-medium text-indigo-600 hover:text-indigo-800" href="{{ list.detailHref }}">{{ list.name }}</a>{% unless list.allowCheckin %} <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">disabled</span>{% endunless %}</td>
-          <td class="px-6 py-3 text-sm text-gray-700">{{ list.checkedIn }} / {{ list.total }} <span class="text-gray-400">({{ list.checkedInHeadcount }} / {{ list.totalHeadcount }} guests)</span></td>
+          <td class="px-6 py-3 text-sm text-gray-700"><a class="font-medium text-indigo-600 hover:text-indigo-800" href="{{ list.detailHref }}">{{ list.name }}</a>{% unless list.allowCheckin %} <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ "checkin.common.disabled" | t }}</span>{% endunless %}</td>
+          <td class="px-6 py-3 text-sm text-gray-700">{{ list.checkedIn }} / {{ list.total }} <span class="text-gray-400">({{ list.checkedInHeadcount }} / {{ list.totalHeadcount }} {{ "checkin.common.guests" | t }})</span></td>
         </tr>
       {% else %}
-        <tr><td colspan="2" class="px-6 py-10 text-center text-sm text-gray-400">No guest lists on this event yet.</td></tr>
+        <tr><td colspan="2" class="px-6 py-10 text-center text-sm text-gray-400">{{ "checkin.views.event_dashboard.no_guest_lists" | t }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -64,47 +64,47 @@
 
 <!-- Event summary -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4">
-  <h2 class="text-lg font-bold text-gray-900 mb-3">Event summary</h2>
+  <h2 class="text-lg font-bold text-gray-900 mb-3">{{ "checkin.views.event_dashboard.event_summary" | t }}</h2>
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
     <div>
-      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">All guests</div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.all_guests" | t }}</div>
       <div class="text-2xl font-bold text-gray-900">{{ summary.guestCount }}</div>
-      <div class="text-xs text-gray-400 mt-1">{{ summary.guestTotal }} incl. plus guests</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.guestTotal }} {{ "checkin.views.event_dashboard.including_plus_guests" | t }}</div>
     </div>
     <div>
-      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Checked in</div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.common.checked_in" | t }}</div>
       <div class="text-2xl font-bold text-green-800">{{ summary.checkedInCount }}</div>
-      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInTotal }} incl. plus guests</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInTotal }} {{ "checkin.views.event_dashboard.including_plus_guests" | t }}</div>
     </div>
     <div>
-      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Rate</div>
+      <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ "checkin.views.event_dashboard.rate" | t }}</div>
       <div class="text-2xl font-bold text-gray-900">{{ summary.checkedInPercent }}%</div>
-      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInCount }} / {{ summary.guestCount }} guests</div>
+      <div class="text-xs text-gray-400 mt-1">{{ summary.checkedInCount }} / {{ summary.guestCount }} {{ "checkin.common.guests" | t }}</div>
     </div>
   </div>
 </div>
 
 {% if canCheckIn %}
 <!-- Check in an unlisted (walk-in) guest -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4 sticky bottom-0 z-10 drop-shadow-lg" data-walkin-panel data-storage-key="checkin:event-dashboard:walkin-collapsed:{{ eventId }}">
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-4 sticky bottom-0 z-10 drop-shadow-lg" data-walkin-panel data-storage-key="checkin:event-dashboard:walkin-collapsed:{{ eventId }}" data-i18n-expand="{{ "checkin.common.expand" | t }}" data-i18n-collapse="{{ "checkin.common.collapse" | t }}" data-i18n-expand-panel="{{ "checkin.views.event_dashboard.expand_panel" | t }}" data-i18n-collapse-panel="{{ "checkin.views.event_dashboard.collapse_panel" | t }}">
   <div class="flex items-start justify-between gap-4">
-    <button type="button" class="text-left text-lg font-bold text-gray-900 hover:text-indigo-700" data-walkin-heading-toggle aria-expanded="false" aria-controls="walkinPanelBody">Check in unlisted guest</button>
-    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="false" aria-controls="walkinPanelBody" title="Expand panel" aria-label="Expand panel">
+    <button type="button" class="text-left text-lg font-bold text-gray-900 hover:text-indigo-700" data-walkin-heading-toggle aria-expanded="false" aria-controls="walkinPanelBody">{{ "checkin.views.event_dashboard.check_in_unlisted_guest" | t }}</button>
+    <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-walkin-toggle aria-expanded="false" aria-controls="walkinPanelBody" title="{{ "checkin.views.event_dashboard.expand_panel" | t }}" aria-label="{{ "checkin.views.event_dashboard.expand_panel" | t }}">
       <svg data-walkin-toggle-icon class="h-4 w-4 transition-transform" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span data-walkin-toggle-label class="hidden sm:inline">Expand</span>
+      <span data-walkin-toggle-label class="hidden sm:inline">{{ "checkin.common.expand" | t }}</span>
     </button>
   </div>
   <div id="walkinPanelBody" data-walkin-panel-body class="hidden mt-3">
-    <p class="text-sm text-gray-500 mb-3">Adds a walk-in to the event's adhoc list and checks them in.</p>
+    <p class="text-sm text-gray-500 mb-3">{{ "checkin.views.event_dashboard.walk_in_help" | t }}</p>
     <form method="post" action="{{ walkinHref }}" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      <input type="text" name="name" required autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Full name *">
-      <input type="text" name="organization" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Organization">
-      <input type="email" name="email" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Email">
-      <input type="number" name="plus_guests" min="0" value="0" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Plus guests">
+      <input type="text" name="name" required autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.common.full_name_required" | t }}">
+      <input type="text" name="organization" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.common.organization" | t }}">
+      <input type="email" name="email" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.common.email" | t }}">
+      <input type="number" name="plus_guests" min="0" value="0" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="{{ "checkin.common.plus_guests" | t }}">
       <input type="hidden" name="checkin" value="1">
-      <button type="submit" class="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Add &amp; check in</button>
+      <button type="submit" class="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.add_and_check_in" | t }}</button>
     </form>
   </div>
 </div>

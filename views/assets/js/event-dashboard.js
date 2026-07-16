@@ -15,6 +15,7 @@ function initWalkinPanel(panel) {
   const headingToggle = panel.querySelector('[data-walkin-heading-toggle]');
   const label = panel.querySelector('[data-walkin-toggle-label]');
   const icon = panel.querySelector('[data-walkin-toggle-icon]');
+  const i18n = (name, fallback) => panel.getAttribute('data-i18n-' + name) || fallback;
   if (!body || !toggle) return;
 
   const storageKey = panel.dataset.storageKey || 'checkin:event-dashboard:walkin-collapsed';
@@ -34,9 +35,9 @@ function initWalkinPanel(panel) {
     body.classList.toggle('hidden', isCollapsed);
     toggle.setAttribute('aria-expanded', String(!isCollapsed));
     if (headingToggle) headingToggle.setAttribute('aria-expanded', String(!isCollapsed));
-    toggle.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
-    toggle.setAttribute('title', isCollapsed ? 'Expand panel' : 'Collapse panel');
-    if (label) label.textContent = isCollapsed ? 'Expand' : 'Collapse';
+    toggle.setAttribute('aria-label', isCollapsed ? i18n('expand-panel', 'Expand panel') : i18n('collapse-panel', 'Collapse panel'));
+    toggle.setAttribute('title', isCollapsed ? i18n('expand-panel', 'Expand panel') : i18n('collapse-panel', 'Collapse panel'));
+    if (label) label.textContent = isCollapsed ? i18n('expand', 'Expand') : i18n('collapse', 'Collapse');
     if (icon) icon.style.transform = isCollapsed ? 'rotate(180deg)' : '';
   }
 }
@@ -106,6 +107,10 @@ function writeStorageValue(storageKey, value) {
     return node;
   }
 
+  function i18n(root, name, fallback) {
+    return root.getAttribute('data-i18n-' + name) || fallback;
+  }
+
   function setHref(node, value) {
     if (node instanceof HTMLAnchorElement) node.href = String(value || '');
   }
@@ -128,26 +133,26 @@ function writeStorageValue(storageKey, value) {
     container.appendChild(wrapper);
   }
 
-  function updatePlusGuests(row, value) {
+  function updatePlusGuests(root, row, value) {
     const count = Number(value || 0);
     const plus = row.querySelector('[data-guest-plus]');
     if (!plus) return;
     plus.hidden = !(count > 0);
     text(plus, '[data-guest-plus-count]', count > 0 ? count : 0);
-    text(plus, '[data-guest-plus-label]', count === 1 ? 'guest' : 'guests');
+    text(plus, '[data-guest-plus-label]', count === 1 ? i18n(root, 'guest', 'guest') : i18n(root, 'guests', 'guests'));
   }
 
-  function updateCheckin(row, checkedIn) {
+  function updateCheckin(root, row, checkedIn) {
     const cell = row.querySelector('[data-guest-checkin]');
     if (!cell) return;
     cell.textContent = '';
     const label = document.createElement('span');
     if (checkedIn) {
       label.className = 'inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700';
-      label.textContent = 'Checked in';
+      label.textContent = i18n(root, 'checked-in', 'Checked in');
     } else {
       label.className = 'text-xs text-gray-400';
-      label.textContent = 'Not checked in';
+      label.textContent = i18n(root, 'not-checked-in', 'Not checked in');
     }
     cell.appendChild(label);
   }
@@ -161,7 +166,7 @@ function writeStorageValue(storageKey, value) {
     });
   }
 
-  function fillRow(prototype, data) {
+  function fillRow(root, prototype, data) {
     const row = prototype.cloneNode(true);
     row.setAttribute('data-filter-search', String(data.searchText || ''));
     row.setAttribute('data-filter-status', String(data.status || ''));
@@ -172,7 +177,7 @@ function writeStorageValue(storageKey, value) {
     text(row, '[data-guest-email]', data.email);
     text(row, '[data-guest-list]', data.listName);
     text(row, '[data-guest-organization]', data.organization);
-    updatePlusGuests(row, data.plusGuests);
+    updatePlusGuests(root, row, data.plusGuests);
     text(row, '[data-guest-status]', data.status);
     const custom = text(row, '[data-guest-custom-field]', data.customFieldValue || '—');
     if (custom) {
@@ -180,7 +185,7 @@ function writeStorageValue(storageKey, value) {
       custom.classList.toggle('text-gray-400', !data.customFieldValue);
     }
     updateColorDot(row, data.colorTag);
-    updateCheckin(row, Boolean(data.checkedIn));
+    updateCheckin(root, row, Boolean(data.checkedIn));
     setHref(row.querySelector('[data-guest-open]'), data.guestHref);
     resetPrivacyState(row);
     return row;
@@ -191,7 +196,7 @@ function writeStorageValue(storageKey, value) {
     if (!summary) summary = document.querySelector('[data-checkin-all-guests-summary-text]');
     if (!summary) return;
     if (!done) {
-      summary.textContent = rendered + ' of ' + filtered + ' matching guests rendered';
+      summary.textContent = rendered + ' ' + i18n(root, 'of', 'of') + ' ' + filtered + ' ' + i18n(root, 'matching-rendered', 'matching guests rendered');
       return;
     }
     summary.textContent = '';
@@ -200,13 +205,13 @@ function writeStorageValue(storageKey, value) {
     count.textContent = String(filtered);
     const label = document.createElement('span');
     label.setAttribute('data-table-filter-count-label', 'guests');
-    label.setAttribute('data-singular', 'guest');
-    label.setAttribute('data-plural', 'guests');
-    label.textContent = filtered === 1 ? 'guest' : 'guests';
+    label.setAttribute('data-singular', i18n(root, 'guest', 'guest'));
+    label.setAttribute('data-plural', i18n(root, 'guests', 'guests'));
+    label.textContent = filtered === 1 ? i18n(root, 'guest', 'guest') : i18n(root, 'guests', 'guests');
     summary.appendChild(count);
     summary.appendChild(document.createTextNode(' '));
     summary.appendChild(label);
-    summary.appendChild(document.createTextNode(' across every list'));
+    summary.appendChild(document.createTextNode(' ' + i18n(root, 'across-lists', 'across every list')));
   }
 
   function nextPaint() {
@@ -241,12 +246,12 @@ function writeStorageValue(storageKey, value) {
         if (!root.isConnected) return;
         const fragment = document.createDocumentFragment();
         deferred.slice(offset, offset + 100).forEach((data) => {
-          fragment.appendChild(fillRow(prototype, data));
+          fragment.appendChild(fillRow(root, prototype, data));
           rendered += 1;
         });
         tbody.appendChild(fragment);
         setSummary(root, rendered, filtered, total, false);
-        if (progress) progress.textContent = 'Rendering ' + rendered + ' of ' + filtered + ' matching guests…';
+        if (progress) progress.textContent = i18n(root, 'rendering', 'Rendering') + ' ' + rendered + ' ' + i18n(root, 'of', 'of') + ' ' + filtered + ' ' + i18n(root, 'matching-guests', 'matching guests') + '…';
         await nextPaint();
       }
 
@@ -259,7 +264,7 @@ function writeStorageValue(storageKey, value) {
       if (loading) loading.remove();
       if (window.WorkerCmsTableFilter) window.WorkerCmsTableFilter.scan(document);
     } catch (error) {
-      if (progress) progress.textContent = 'The remaining guests could not be rendered. Refresh the page to try again.';
+      if (progress) progress.textContent = i18n(root, 'render-error', 'The remaining guests could not be rendered. Refresh the page to try again.');
       if (loading) loading.classList.add('border-red-200', 'bg-red-50');
     }
   }

@@ -73,6 +73,16 @@ describe('plugin contract', () => {
     expect((manifest as { assets?: Array<{ path?: string }> }).assets).toContainEqual(expect.objectContaining({ path: '/assets/js/qrcode.min.js' }));
   });
 
+  it('serves the localized CMS sidebar navigation label', async () => {
+    const expected = { en: 'Check-in', 'zh-hans': '签到', 'zh-hant': '簽到' };
+    for (const [locale, label] of Object.entries(expected)) {
+      const response = await plugin.fetch(request(`/__plugin/views/locales/${locale}.json`), env());
+      expect(response.status).toBe(200);
+      const catalog = await response.json() as { plugins?: { checkin?: { nav?: { dashboard?: string } } } };
+      expect(catalog.plugins?.checkin?.nav?.dashboard).toBe(label);
+    }
+  });
+
   it('serves a CSP-safe badge encoder that fails closed', async () => {
     const response = await plugin.fetch(request('/assets/js/encoder.js'), env({ PLUGIN_SECRET: 'shared-secret' }));
     expect(response.status).toBe(200);
@@ -202,7 +212,7 @@ describe('kiosk (login-gated admin surface)', () => {
     expect(response.headers.get('x-cms-permissions')).toBe('camera');
     expect(decodeURIComponent(response.headers.get('x-cms-title') ?? '')).toBe('Launch Party');
     const html = await renderedText(response);
-    expect(html).toContain('<div class="max-w-md">');
+    expect(html).toContain('<div class="max-w-md" data-kiosk-scan');
     expect(html).toContain('&larr; Launch Party</a>');
     expect(html).not.toContain('<h1 class="text-2xl font-bold text-gray-900">Launch Party</h1>');
     expect(html).toContain('id="scanVideoFrame"');
@@ -465,7 +475,7 @@ describe('kiosk (login-gated admin surface)', () => {
     );
     const html = await renderedText(response);
 
-    expect(html).toContain('<div class="max-w-md" data-kiosk-guest>');
+    expect(html).toContain('<div class="max-w-md" data-kiosk-guest');
     expect(html).toContain('&larr; Launch Party</a>');
     expect(html).not.toContain('&larr; Scan</a>');
     expect(html).not.toContain('>Search</a>');
@@ -764,6 +774,9 @@ describe('event dashboard (parity with legacy guest-lists page)', () => {
     expect(html).toContain('VIP');
     expect(html).toContain('Press');
     expect(html).toContain('data-privacy-table');
+    expect(html).toContain('data-privacy-toggle');
+    expect(html).toContain('<div data-privacy-control hidden></div>');
+    expect(html).toContain('class="whitespace-nowrap px-6 py-3 text-sm text-gray-700" data-guest-list');
     expect(html).toContain('/admin/plugins/checkin/kiosk/7/guests/34?return_to=%2Fadmin%2Fplugins%2Fcheckin%2Fevents%2F7%2Fall-guests');
     expect(html).not.toContain('/admin/plugins/events/');
   });

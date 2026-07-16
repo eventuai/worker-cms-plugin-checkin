@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Check-in</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ "checkin.common.check_in" | t }}</title>
 <style>body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif;font-size:16px;color:#111827}.card{max-width:26rem;margin:3rem auto;background:#fff;padding:2rem;border-radius:1rem;box-shadow:0 1px 3px #0002;text-align:center}h1{margin:0 0 .25rem;font-size:1.5rem}.muted{color:#6b7280;margin:0 0 1.5rem}.check{width:4rem;height:4rem;border-radius:9999px;background:#dcfce7;color:#166534;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1rem}button{border:0;border-radius:.5rem;padding:.9rem 1.4rem;font:inherit;font-size:1.1rem;font-weight:700;cursor:pointer;background:#4f46e5;color:#fff;width:100%}</style></head>
 <body><main class="card">
   {% if checkedIn %}
     <div class="check">&#10003;</div>
     <h1>{{ guestName | escape }}</h1>
-    <p class="muted">{{ label | escape }}{% if organization %} &middot; {{ organization | escape }}{% endif %}<br>You're checked in.</p>
+    <p class="muted">{{ label | escape }}{% if organization %} &middot; {{ organization | escape }}{% endif %}<br>{{ "checkin.views.checkin_confirm.you_are_checked_in" | t }}</p>
   {% else %}
     <h1>{{ guestName | escape }}</h1>
     <p class="muted">{{ label | escape }}{% if organization %} &middot; {{ organization | escape }}{% endif %}</p>
-    <form method="post"><button type="submit">Check In</button></form>
+    <form method="post"><button type="submit">{{ "checkin.common.check_in" | t }}</button></form>
   {% endif %}
 </main></body></html>

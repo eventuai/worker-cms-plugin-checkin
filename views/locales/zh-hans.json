@@ -1,0 +1,21 @@
+{
+  "plugins": { "checkin": { "nav": { "dashboard": "签到" } } },
+  "checkin": {
+    "common": {
+      "add_and_check_in": "新增并签到", "all_color_tags": "所有颜色标签", "all_guests": "所有嘉宾", "all_statuses": "所有状态", "check_in": "签到", "checked_in": "已签到", "clear": "清除", "collapse": "收起", "color_tag": "颜色标签", "custom_field": "自定义字段", "disabled": "已停用", "email": "邮箱", "event": "活动", "events": "活动", "expand": "展开", "filter_by_color_tag": "按颜色标签筛选", "filter_by_status": "按状态筛选", "full_name_required": "全名 *", "guest": "位嘉宾", "guest_list": "嘉宾名单", "guests": "位嘉宾", "in": "已签到", "name": "姓名", "name_email": "姓名／邮箱", "name_email_company": "姓名、邮箱或公司", "no_color_tag": "无颜色标签", "no_guests_match": "没有匹配的嘉宾", "no_guests_match_filter": "没有符合此筛选条件的嘉宾。", "not_checked_in": "未签到", "of": "共", "open": "打开", "organization": "机构", "plus_guests": "随行嘉宾", "reveal": "显示", "reveal_private_fields": "显示隐私字段", "save": "保存", "saving": "保存中…", "scan": "扫描", "search": "搜索", "search_guests": "搜索嘉宾", "search_name_email_company": "搜索姓名、邮箱或公司", "settings": "设置", "status": "状态", "undo": "撤销"
+    },
+    "views": {
+      "all_guests": { "across_every_list": "（所有名单）", "matching_guests": "位匹配嘉宾", "matching_guests_rendered": "位匹配嘉宾已显示", "no_guests_on_event": "此活动尚无嘉宾。", "render_error": "无法显示其余嘉宾。请刷新页面重试。", "rendering": "正在显示", "search_placeholder": "搜索姓名、邮箱、电话、嘉宾 ID 或名单" },
+      "checkin_confirm": { "you_are_checked_in": "您已完成签到。" },
+      "dashboard": { "check_in": "签到", "events_with_check_in_configuration": "已设置签到功能的活动。", "no_active_events": "没有进行中的活动。" },
+      "error": { "and": "及", "cannot_reach_cms": "无法连接 CMS", "on_this_plugin_worker": "于此插件 Worker 上", "secret_note": "（密钥必须与 CMS 管理界面显示的值相同），然后重新加载。", "set": "请设置" },
+      "event_dashboard": { "check_in_unlisted_guest": "为未列名嘉宾签到", "collapse_panel": "收起面板", "event_summary": "活动摘要", "expand_panel": "展开面板", "including_plus_guests": "包括随行嘉宾", "no_guest_lists": "此活动尚无嘉宾名单。", "rate": "比率", "search_all_guests": "按姓名、邮箱或公司搜索所有嘉宾…", "search_by_custom_field": "按自定义字段搜索", "value_to_search": "输入搜索值…", "view_all_guests": "查看所有嘉宾", "walk_in_help": "将现场嘉宾加入活动的临时名单并完成签到。" },
+      "guest_list_details": { "no_guests_in_list": "此名单尚无嘉宾。", "search_placeholder": "搜索姓名、邮箱或机构" },
+      "guest_search": { "search_help": "按姓名、邮箱或公司搜索嘉宾。" },
+      "kiosk_guest": { "bound_to": "已绑定至", "check_in_again": "再次签到", "check_in_all": "全部签到", "label": "张标签", "labels": "张标签", "name_optional": "姓名（选填）", "no_tag_bound": "尚未绑定标签。", "photo_of": "照片：", "preparing": "正在准备", "preview": "预览", "print_error": "无法打印标签：", "print_labels": "打印标签", "rfid_tag": "RFID 标签", "scan_or_type_tag": "扫描或输入标签", "sending_to_printer": "正在发送至打印机…", "sent_labels": "已发送", "sessions": "环节", "to_printer": "至打印机", "undo_all": "全部撤销", "undo_all_confirm": "要撤销所有随行嘉宾的签到吗？", "update_error": "无法更新签到：" },
+      "kiosk_scan": { "camera": "相机", "camera_unavailable": "无法使用相机，请在下方手动输入。", "code_detected": "已检测到代码！", "code_value": "QR／条码／RFID 值", "enter_code_manually": "手动输入代码", "find_guest": "查找嘉宾", "loading_scanner": "正在加载扫描器…", "mirror_camera": "镜像相机", "or_search_by_name": "或按姓名搜索", "scanner_unavailable": "无法使用扫描器，请在下方手动输入。", "scanning": "正在扫描代码…", "starting_camera": "正在启动相机", "walk_in_guest": "现场嘉宾" },
+      "kiosk_search": { "searching_by": "搜索字段：", "start_typing": "开始输入以搜索。", "value": "值" },
+      "kiosk_settings": { "list_printers": "列出打印机", "pair_usb_printer": "配对 USB 打印机", "printer_list_url": "打印机列表 URL", "printer_mode": "打印机模式", "printer_server": "打印机服务器（本地转发，支持任意浏览器）", "printer_server_url": "打印机服务器 URL", "refresh_printers": "刷新打印机", "selected_printer": "已选打印机", "send_test_print": "发送测试打印", "test_connection": "测试连接", "usb_printer": "USB 打印机（WebUSB，仅限 Chrome／Edge）" }
+    }
+  }
+}

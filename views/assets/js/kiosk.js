@@ -57,6 +57,8 @@ async function initScanner() {
   const video = document.getElementById('scanVideo');
   if (!video) return;
 
+  const root = video.closest('[data-kiosk-scan]');
+  const i18n = (name, fallback) => root?.getAttribute('data-i18n-' + name) || fallback;
   const frame = document.getElementById('scanVideoFrame');
   const statusEl = document.getElementById('scanStatus');
   const cameraSelect = document.getElementById('scanCameraSelect');
@@ -76,18 +78,18 @@ async function initScanner() {
   let pinchStartZoom = 1;
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+    if (statusEl) statusEl.textContent = i18n('camera-unavailable', 'Camera unavailable — use manual entry below.');
     if (cameraSelect) cameraSelect.disabled = true;
     if (mirrorToggle) mirrorToggle.disabled = true;
     return;
   }
 
   try {
-    if (statusEl) statusEl.textContent = 'Loading scanner…';
+    if (statusEl) statusEl.textContent = i18n('loading-scanner', 'Loading scanner…');
     await prepareScannerDecoder();
   } catch (error) {
     console.error('Scanner decoder unavailable:', error);
-    if (statusEl) statusEl.textContent = 'Scanner unavailable — use manual entry below.';
+    if (statusEl) statusEl.textContent = i18n('scanner-unavailable', 'Scanner unavailable — use manual entry below.');
     return;
   }
 
@@ -139,7 +141,7 @@ async function initScanner() {
     window.clearTimeout(scanTimer);
     stopStream();
 
-    if (statusEl) statusEl.textContent = 'Starting camera…';
+    if (statusEl) statusEl.textContent = i18n('starting-camera', 'Starting camera…');
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: selectedDeviceId
@@ -157,7 +159,7 @@ async function initScanner() {
       if (!selectedDeviceId) selectedDeviceId = track && track.getSettings ? track.getSettings().deviceId || '' : '';
       await refreshCameraList();
       if (selectedDeviceId) writeStringSetting(KIOSK_CAMERA_STORAGE_KEY, selectedDeviceId);
-      if (statusEl) statusEl.textContent = 'Scanning for codes…';
+      if (statusEl) statusEl.textContent = i18n('scanning', 'Scanning for codes…');
       scheduleScan(run);
     } catch (error) {
       if (selectedDeviceId) {
@@ -167,7 +169,7 @@ async function initScanner() {
         return;
       }
       console.error('Camera unavailable:', error);
-      if (statusEl) statusEl.textContent = 'Camera unavailable — use manual entry below.';
+      if (statusEl) statusEl.textContent = i18n('camera-unavailable', 'Camera unavailable — use manual entry below.');
       if (cameraSelect) cameraSelect.disabled = true;
     }
   }
@@ -192,7 +194,7 @@ async function initScanner() {
       devices.forEach((device, index) => {
         const option = document.createElement('option');
         option.value = device.deviceId;
-        option.textContent = device.label || `Camera ${index + 1}`;
+        option.textContent = device.label || `${i18n('camera', 'Camera')} ${index + 1}`;
         cameraSelect.appendChild(option);
       });
       if (currentValue && devices.some((device) => device.deviceId === currentValue)) {
@@ -237,7 +239,7 @@ async function initScanner() {
         if (isDecoderLoadError(error)) {
           console.error('Scanner decoder failed after camera start:', error);
           scanning = false;
-          if (statusEl) statusEl.textContent = 'Scanner unavailable — use manual entry below.';
+          if (statusEl) statusEl.textContent = i18n('scanner-unavailable', 'Scanner unavailable — use manual entry below.');
           return;
         }
         // Decode miss on this frame — keep scanning.
@@ -270,7 +272,7 @@ async function initScanner() {
   }
 
   function onDecoded(text) {
-    if (statusEl) statusEl.textContent = 'Code detected!';
+    if (statusEl) statusEl.textContent = i18n('code-detected', 'Code detected!');
     const checkinCode = checkinLinkCode(text);
     if (checkinCode) {
       // Keep the camera flow inside the staff kiosk. The server verifies the
@@ -378,6 +380,7 @@ function initBadgePrint() {
 
 async function printBadges(button) {
   const root = button.closest('[data-kiosk-guest]') || document;
+  const i18n = (name, fallback) => root.getAttribute?.('data-i18n-' + name) || fallback;
   const cards = Array.from(root.querySelectorAll('[data-label-card]'));
   const originalText = button.textContent;
   button.disabled = true;
@@ -396,7 +399,7 @@ async function printBadges(button) {
       // QR codes render once qrcode.min.js finishes loading (kiosk-labels.js
       // marks them pending) — don't print a badge whose QR is still missing.
       if (svgElement.querySelector('[data-qr-pending]')) throw new Error('Badge preview is not ready');
-      button.textContent = `Preparing ${index + 1} of ${cards.length}…`;
+      button.textContent = `${i18n('preparing', 'Preparing')} ${index + 1} ${i18n('of', 'of')} ${cards.length}…`;
       printCommands.push(await encodeBadge(svgElement, widthMm, heightMm));
     }
     const bitmapOutput = document.getElementById('bitmapOutput');
@@ -405,12 +408,12 @@ async function printBadges(button) {
     // command streams preserves both page boundaries while the transport
     // sends them to the printer server/USB device as one job.
     bitmapOutput.value = printCommands.join('\n');
-    button.textContent = 'Sending to printer…';
+    button.textContent = i18n('sending-to-printer', 'Sending to printer…');
     await connectAndPrintWithBitmap(bitmapOutput);
-    button.textContent = `Sent ${cards.length} label${cards.length === 1 ? '' : 's'} to printer`;
+    button.textContent = `${i18n('sent-labels', 'Sent')} ${cards.length} ${cards.length === 1 ? i18n('label', 'label') : i18n('labels', 'labels')} ${i18n('to-printer', 'to printer')}`;
   } catch (error) {
     console.error('Badge print failed:', error);
-    alert('Could not print labels: ' + error.message);
+    alert(i18n('print-error', 'Could not print labels:') + ' ' + error.message);
     button.textContent = originalText;
   } finally {
     setTimeout(() => {
@@ -423,6 +426,7 @@ async function printBadges(button) {
 async function initGuestActions() {
   const root = document.querySelector('[data-kiosk-guest]');
   if (!root) return;
+  const i18n = (name, fallback) => root.getAttribute('data-i18n-' + name) || fallback;
 
   root.querySelectorAll('form[data-kiosk-action]').forEach((form) => {
     form.addEventListener('submit', async (event) => {
@@ -434,7 +438,7 @@ async function initGuestActions() {
       const originalText = button?.textContent || '';
       if (button) {
         button.disabled = true;
-        button.textContent = 'Saving…';
+        button.textContent = i18n('saving', 'Saving…');
       }
 
       try {
@@ -459,7 +463,7 @@ async function initGuestActions() {
         }
       } catch (error) {
         console.error('Kiosk guest action failed:', error);
-        alert('Could not update check-in: ' + error.message);
+        alert(i18n('update-error', 'Could not update check-in:') + ' ' + error.message);
         if (button) {
           button.disabled = false;
           button.textContent = originalText;
@@ -480,12 +484,26 @@ async function renderKioskGuestRoot(payload) {
   });
   if (!response.ok) throw new Error('The guest view could not be refreshed');
   const engine = new window.liquidjs.Liquid();
+  const catalog = await loadAdminCatalog();
+  engine.registerFilter('t', (key) => catalog[String(key || '')] || String(key || ''));
   const html = await engine.parseAndRender(await response.text(), payload.data);
   const template = document.createElement('template');
   template.innerHTML = html;
   const root = template.content.querySelector('[data-kiosk-guest]');
   if (!root) throw new Error('The refreshed guest view was empty');
   return root;
+}
+
+var KIOSK_CATALOG_PROMISE;
+function loadAdminCatalog() {
+  if (!KIOSK_CATALOG_PROMISE) {
+    const locale = document.documentElement.lang || 'en';
+    KIOSK_CATALOG_PROMISE = fetch('/admin/i18n/catalog/' + encodeURIComponent(locale), {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    }).then((response) => response.ok ? response.json() : {});
+  }
+  return KIOSK_CATALOG_PROMISE;
 }
 
 async function encodeBadge(svgElement, widthMm, heightMm) {

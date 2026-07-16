@@ -1,27 +1,27 @@
-<div class="max-w-md" data-kiosk-guest>
+<div class="max-w-md" data-kiosk-guest data-i18n-saving="{{ "checkin.common.saving" | t }}" data-i18n-preparing="{{ "checkin.views.kiosk_guest.preparing" | t }}" data-i18n-of="{{ "checkin.common.of" | t }}" data-i18n-sending-to-printer="{{ "checkin.views.kiosk_guest.sending_to_printer" | t }}" data-i18n-sent-labels="{{ "checkin.views.kiosk_guest.sent_labels" | t }}" data-i18n-label="{{ "checkin.views.kiosk_guest.label" | t }}" data-i18n-labels="{{ "checkin.views.kiosk_guest.labels" | t }}" data-i18n-to-printer="{{ "checkin.views.kiosk_guest.to_printer" | t }}" data-i18n-print-error="{{ "checkin.views.kiosk_guest.print_error" | t }}" data-i18n-update-error="{{ "checkin.views.kiosk_guest.update_error" | t }}">
   <div class="mb-4 flex items-center justify-between gap-4">
     <a class="text-sm text-gray-500 hover:text-indigo-700" href="{{ backHref }}">&larr; {{ eventName }}</a>
   </div>
 
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    {% if picture != blank %}<img src="{{ picture }}" alt="Photo of {{ guestName }}" class="rounded-lg mb-3" style="max-width:8rem;max-height:8rem;object-fit:cover" loading="lazy">{% endif %}
+    {% if picture != blank %}<img src="{{ picture }}" alt="{{ "checkin.views.kiosk_guest.photo_of" | t }} {{ guestName }}" class="rounded-lg mb-3" style="max-width:8rem;max-height:8rem;object-fit:cover" loading="lazy">{% endif %}
     <h1 class="text-2xl font-bold text-gray-900">{{ guestName }}</h1>
     <p class="text-sm text-gray-500 mt-1">{{ organization }}{% if email != blank %} &middot; {{ email }}{% endif %}</p>
-    <p class="mt-2 text-sm text-gray-500">Guest list: <a class="font-medium text-indigo-600 hover:text-indigo-800" href="{{ guestListHref }}">{{ listName }}</a></p>
+    <p class="mt-2 text-sm text-gray-500">{{ "checkin.common.guest_list" | t }}: <a class="font-medium text-indigo-600 hover:text-indigo-800" href="{{ guestListHref }}">{{ listName }}</a></p>
 
     <div class="mt-4">
       {% if mainCheckedIn %}
-        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Checked in</span>
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{{ "checkin.common.checked_in" | t }}</span>
         {% if canCheckIn %}
           <div class="flex gap-2 mt-2">
-            {% unless mainAtCap %}<form method="post" action="{{ actionBase }}/checkin-main" data-kiosk-action><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Check in again</button></form>{% endunless %}
-            <form method="post" action="{{ actionBase }}/undo-main" data-kiosk-action><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Undo</button></form>
+            {% unless mainAtCap %}<form method="post" action="{{ actionBase }}/checkin-main" data-kiosk-action><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.views.kiosk_guest.check_in_again" | t }}</button></form>{% endunless %}
+            <form method="post" action="{{ actionBase }}/undo-main" data-kiosk-action><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.undo" | t }}</button></form>
           </div>
         {% endif %}
       {% elsif canCheckIn %}
-        <form method="post" action="{{ actionBase }}/checkin-main" data-kiosk-action><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Check In</button></form>
+        <form method="post" action="{{ actionBase }}/checkin-main" data-kiosk-action><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">{{ "checkin.common.check_in" | t }}</button></form>
       {% else %}
-        <span class="text-sm text-gray-400">Not checked in</span>
+        <span class="text-sm text-gray-400">{{ "checkin.common.not_checked_in" | t }}</span>
       {% endif %}
     </div>
   </div>
@@ -29,11 +29,11 @@
   {% if hasPlusGuests %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <h2 class="text-base font-bold text-gray-900">Plus guests</h2>
+      <h2 class="text-base font-bold text-gray-900">{{ "checkin.common.plus_guests" | t }}</h2>
       {% if canCheckIn %}
         <div class="flex flex-wrap items-center gap-2">
-          {% if hasUncheckedPlusGuests %}<form method="post" action="{{ actionBase }}/checkin-all-plus" data-kiosk-action><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in all</button></form>{% endif %}
-          {% if hasCheckedInPlusGuests %}<form method="post" action="{{ actionBase }}/undo-all-plus" data-kiosk-action data-confirm="Undo every plus guest check-in?"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo all</button></form>{% endif %}
+          {% if hasUncheckedPlusGuests %}<form method="post" action="{{ actionBase }}/checkin-all-plus" data-kiosk-action><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.views.kiosk_guest.check_in_all" | t }}</button></form>{% endif %}
+          {% if hasCheckedInPlusGuests %}<form method="post" action="{{ actionBase }}/undo-all-plus" data-kiosk-action data-confirm="{{ "checkin.views.kiosk_guest.undo_all_confirm" | t }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.views.kiosk_guest.undo_all" | t }}</button></form>{% endif %}
         </div>
       {% endif %}
     </div>
@@ -43,16 +43,16 @@
           <span class="text-sm text-gray-700">{{ plus.label }}</span>
           {% if canCheckIn %}
             {% if plus.checkedIn %}
-              <form method="post" action="{{ actionBase }}/undo-plus" data-kiosk-action><input type="hidden" name="index" value="{{ plus.index }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo</button></form>
+              <form method="post" action="{{ actionBase }}/undo-plus" data-kiosk-action><input type="hidden" name="index" value="{{ plus.index }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.common.undo" | t }}</button></form>
             {% else %}
               <form method="post" action="{{ actionBase }}/checkin-plus" class="flex gap-2" data-kiosk-action>
                 <input type="hidden" name="index" value="{{ plus.index }}">
-                <input type="text" name="name" placeholder="Name (optional)" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs">
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in</button>
+                <input type="text" name="name" placeholder="{{ "checkin.views.kiosk_guest.name_optional" | t }}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.common.check_in" | t }}</button>
               </form>
             {% endif %}
           {% elsif plus.checkedIn %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">In</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{{ "checkin.common.in" | t }}</span>
           {% endif %}
         </div>
       {% endfor %}
@@ -62,19 +62,19 @@
 
   {% if hasSessions %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    <h2 class="text-base font-bold text-gray-900 mb-2">Sessions</h2>
+    <h2 class="text-base font-bold text-gray-900 mb-2">{{ "checkin.views.kiosk_guest.sessions" | t }}</h2>
     <div class="divide-y divide-gray-100">
       {% for session in sessions %}
         <div class="flex items-center justify-between gap-3 py-2">
           <span class="text-sm text-gray-700">{{ session.name }}</span>
           {% if canCheckIn %}
             {% if session.checkedIn %}
-              <form method="post" action="{{ actionBase }}/undo-session" data-kiosk-action><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Undo</button></form>
+              <form method="post" action="{{ actionBase }}/undo-session" data-kiosk-action><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.common.undo" | t }}</button></form>
             {% else %}
-              <form method="post" action="{{ actionBase }}/checkin-session" data-kiosk-action><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">Check in</button></form>
+              <form method="post" action="{{ actionBase }}/checkin-session" data-kiosk-action><input type="hidden" name="session_id" value="{{ session.id }}"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-3 py-1.5 text-xs cursor-pointer">{{ "checkin.common.check_in" | t }}</button></form>
             {% endif %}
           {% elsif session.checkedIn %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">In</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{{ "checkin.common.in" | t }}</span>
           {% endif %}
         </div>
       {% endfor %}
@@ -84,11 +84,11 @@
 
   {% if canCheckIn and hasRfid %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-4">
-    <h2 class="text-base font-bold text-gray-900 mb-2">RFID tag</h2>
-    <p class="text-sm text-gray-500 mb-2">{% if rfid != blank %}Bound to: {{ rfid }}{% else %}No tag bound yet.{% endif %}</p>
+    <h2 class="text-base font-bold text-gray-900 mb-2">{{ "checkin.views.kiosk_guest.rfid_tag" | t }}</h2>
+    <p class="text-sm text-gray-500 mb-2">{% if rfid != blank %}{{ "checkin.views.kiosk_guest.bound_to" | t }}: {{ rfid }}{% else %}{{ "checkin.views.kiosk_guest.no_tag_bound" | t }}{% endif %}</p>
     <form method="post" action="{{ actionBase }}/save-rfid" class="flex gap-2">
-      <input type="text" name="tag" placeholder="Scan or type tag" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm">
-      <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">Save</button>
+      <input type="text" name="tag" placeholder="{{ "checkin.views.kiosk_guest.scan_or_type_tag" | t }}" autocomplete="off" class="w-full block px-3 py-2 border border-gray-300 rounded-lg text-sm">
+      <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm cursor-pointer">{{ "checkin.common.save" | t }}</button>
     </form>
   </div>
   {% endif %}
@@ -100,10 +100,10 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5" data-label-card>
           <h2 class="text-base font-bold text-gray-900 mb-3">{{ label.name }}</h2>
           <textarea data-label-design hidden readonly>{{ label.design }}</textarea>
-          <div data-label-preview class="flex justify-center overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3" aria-label="{{ label.name }} preview"></div>
+          <div data-label-preview class="flex justify-center overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3" aria-label="{{ label.name }} {{ "checkin.views.kiosk_guest.preview" | t }}"></div>
         </div>
       {% endfor %}
-      <button type="button" data-print-badges class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">Print labels</button>
+      <button type="button" data-print-badges class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg px-4 py-2 cursor-pointer">{{ "checkin.views.kiosk_guest.print_labels" | t }}</button>
     </div>
   {% endif %}
 </div>

@@ -1,0 +1,21 @@
+{
+  "plugins": { "checkin": { "nav": { "dashboard": "簽到" } } },
+  "checkin": {
+    "common": {
+      "add_and_check_in": "新增並簽到", "all_color_tags": "所有顏色標籤", "all_guests": "所有賓客", "all_statuses": "所有狀態", "check_in": "簽到", "checked_in": "已簽到", "clear": "清除", "collapse": "收合", "color_tag": "顏色標籤", "custom_field": "自訂欄位", "disabled": "已停用", "email": "電郵", "event": "活動", "events": "活動", "expand": "展開", "filter_by_color_tag": "按顏色標籤篩選", "filter_by_status": "按狀態篩選", "full_name_required": "全名 *", "guest": "位賓客", "guest_list": "賓客名單", "guests": "位賓客", "in": "已簽到", "name": "姓名", "name_email": "姓名／電郵", "name_email_company": "姓名、電郵或公司", "no_color_tag": "沒有顏色標籤", "no_guests_match": "沒有相符賓客", "no_guests_match_filter": "沒有符合此篩選條件的賓客。", "not_checked_in": "未簽到", "of": "共", "open": "開啟", "organization": "機構", "plus_guests": "同行賓客", "reveal": "顯示", "reveal_private_fields": "顯示私隱欄位", "save": "儲存", "saving": "儲存中…", "scan": "掃描", "search": "搜尋", "search_guests": "搜尋賓客", "search_name_email_company": "搜尋姓名、電郵或公司", "settings": "設定", "status": "狀態", "undo": "復原"
+    },
+    "views": {
+      "all_guests": { "across_every_list": "（所有名單）", "matching_guests": "位相符賓客", "matching_guests_rendered": "位相符賓客已顯示", "no_guests_on_event": "此活動尚未有賓客。", "render_error": "無法顯示其餘賓客。請重新整理頁面再試。", "rendering": "正在顯示", "search_placeholder": "搜尋姓名、電郵、電話、賓客 ID 或名單" },
+      "checkin_confirm": { "you_are_checked_in": "您已完成簽到。" },
+      "dashboard": { "check_in": "簽到", "events_with_check_in_configuration": "已設定簽到功能的活動。", "no_active_events": "沒有進行中的活動。" },
+      "error": { "and": "及", "cannot_reach_cms": "無法連接 CMS", "on_this_plugin_worker": "於此外掛 Worker 上", "secret_note": "（密鑰必須與 CMS 管理介面顯示的值相同），然後重新載入。", "set": "請設定" },
+      "event_dashboard": { "check_in_unlisted_guest": "為未列名賓客簽到", "collapse_panel": "收合面板", "event_summary": "活動摘要", "expand_panel": "展開面板", "including_plus_guests": "包括同行賓客", "no_guest_lists": "此活動尚未有賓客名單。", "rate": "比率", "search_all_guests": "按姓名、電郵或公司搜尋所有賓客…", "search_by_custom_field": "按自訂欄位搜尋", "value_to_search": "輸入搜尋值…", "view_all_guests": "查看所有賓客", "walk_in_help": "將即場賓客加入活動的臨時名單並完成簽到。" },
+      "guest_list_details": { "no_guests_in_list": "此名單尚未有賓客。", "search_placeholder": "搜尋姓名、電郵或機構" },
+      "guest_search": { "search_help": "按姓名、電郵或公司搜尋賓客。" },
+      "kiosk_guest": { "bound_to": "已綁定至", "check_in_again": "再次簽到", "check_in_all": "全部簽到", "label": "張標籤", "labels": "張標籤", "name_optional": "姓名（選填）", "no_tag_bound": "尚未綁定標籤。", "photo_of": "相片：", "preparing": "正在準備", "preview": "預覽", "print_error": "無法列印標籤：", "print_labels": "列印標籤", "rfid_tag": "RFID 標籤", "scan_or_type_tag": "掃描或輸入標籤", "sending_to_printer": "正在傳送至印表機…", "sent_labels": "已傳送", "sessions": "環節", "to_printer": "至印表機", "undo_all": "全部復原", "undo_all_confirm": "要復原所有同行賓客的簽到嗎？", "update_error": "無法更新簽到：" },
+      "kiosk_scan": { "camera": "相機", "camera_unavailable": "無法使用相機，請在下方手動輸入。", "code_detected": "已偵測到代碼！", "code_value": "QR／條碼／RFID 值", "enter_code_manually": "手動輸入代碼", "find_guest": "尋找賓客", "loading_scanner": "正在載入掃描器…", "mirror_camera": "鏡像相機", "or_search_by_name": "或按姓名搜尋", "scanner_unavailable": "無法使用掃描器，請在下方手動輸入。", "scanning": "正在掃描代碼…", "starting_camera": "正在啟動相機", "walk_in_guest": "即場賓客" },
+      "kiosk_search": { "searching_by": "搜尋欄位：", "start_typing": "開始輸入以搜尋。", "value": "值" },
+      "kiosk_settings": { "list_printers": "列出印表機", "pair_usb_printer": "配對 USB 印表機", "printer_list_url": "印表機清單 URL", "printer_mode": "印表機模式", "printer_server": "印表機伺服器（本機轉送，支援任何瀏覽器）", "printer_server_url": "印表機伺服器 URL", "refresh_printers": "重新整理印表機", "selected_printer": "已選印表機", "send_test_print": "傳送測試列印", "test_connection": "測試連線", "usb_printer": "USB 印表機（WebUSB，僅限 Chrome／Edge）" }
+    }
+  }
+}
