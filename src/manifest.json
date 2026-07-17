@@ -2,6 +2,7 @@
   "id": "checkin",
   "name": "Check-in",
   "version": "0.1.0",
+  "i18n": true,
   "nav": [
     {
       "label": "Check-in",
