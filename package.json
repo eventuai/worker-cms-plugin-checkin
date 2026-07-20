@@ -7,10 +7,12 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "kv:setup": "cms-plugin-kv-setup",
+    "kv:setup:preview": "cms-plugin-kv-setup --preview"
   },
   "dependencies": {
-    "@lionrockjs/worker-cms-plugin": "0.2.0",
+    "@lionrockjs/worker-cms-plugin": "0.3.2",
     "@noble/hashes": "^2.2.0",
     "liquidjs": "^10.27.2"
   },
