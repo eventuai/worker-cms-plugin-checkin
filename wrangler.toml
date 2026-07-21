@@ -34,7 +34,7 @@ CMS_URL = "https://cms.eventuai.com"
 # `?t=<tenant ref>`):
 #   wrangler kv key put --binding TENANTS "tenant:https://cms1.example.com" \
 #     '{"secret":"<32-byte hex>","vars":{"EVENTS_PLUGIN_SECRET":"<events signKey>"}}'
-# [[kv_namespaces]]
-# binding = "TENANTS"
-# id = "REPLACE_WITH_ID_FROM_npm_run_kv_setup"
+[[kv_namespaces]]
+binding = "TENANTS"
+id = "372323d1b8994e1b8649196104bc4532"
 # preview_id = "REPLACE_WITH_ID_FROM_npm_run_kv_setup_preview"
